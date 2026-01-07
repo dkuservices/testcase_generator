@@ -1,7 +1,7 @@
 import path from 'path';
 import cron from 'node-cron';
 import { PricingConfig } from '../models/config';
-import { writeJSON, readJSON, fileExists, ensureDirectoryExists } from '../storage/json-storage';
+import { writeJSON, ensureDirectoryExists } from '../storage/json-storage';
 import logger from '../utils/logger';
 
 interface TokenUsage {

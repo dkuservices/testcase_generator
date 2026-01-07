@@ -1,11 +1,12 @@
 import OpenAI from 'openai';
-import logger from '../utils/logger';
+import logger, { createContextLogger } from '../utils/logger';
 
 export function createOpenAIClient(): OpenAI {
   const apiKey = process.env.OPENAI_API_KEY;
+  const contextLogger = createContextLogger({ step: 'openai-init' });
 
   if (!apiKey) {
-    logger.fatal('OPENAI_API_KEY environment variable not set');
+    contextLogger.fatal('OPENAI_API_KEY environment variable not set');
     throw new Error('OPENAI_API_KEY is required');
   }
 

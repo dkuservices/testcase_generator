@@ -43,14 +43,15 @@ export function createWebhookRoute(
         space_key: spaceKey,
       });
 
-      res.status(200).json({
+      // Fire-and-forget async processing
+      processWebhookAsync(page.id, jiraConfig);
+
+      return res.status(200).json({
         message: 'Webhook received',
         job_id: 'processing',
       });
-
-      processWebhookAsync(page.id, jiraConfig);
     } catch (error) {
-      next(error);
+      return next(error);
     }
   });
 

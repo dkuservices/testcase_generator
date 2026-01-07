@@ -6,7 +6,7 @@ const router = Router();
 const startTime = Date.now();
 
 export function createHealthRoute(executionModes: ExecutionModesConfig): Router {
-  router.get('/', (req: Request, res: Response) => {
+  router.get('/', (_req: Request, res: Response) => {
     const uptime = Math.floor((Date.now() - startTime) / 1000);
 
     res.json({

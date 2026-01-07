@@ -1,7 +1,9 @@
 import { AppConfig } from '../models/config';
-import logger from '../utils/logger';
+import logger, { createContextLogger } from '../utils/logger';
 
 export function initializeEventDrivenMode(config: AppConfig): boolean {
+  const contextLogger = createContextLogger({ step: 'event-driven-init' });
+
   if (!config.executionModes.event_driven.enabled) {
     logger.info('Event-driven mode disabled');
     return false;
@@ -12,7 +14,7 @@ export function initializeEventDrivenMode(config: AppConfig): boolean {
   });
 
   if (!config.executionModes.event_driven.webhook_secret) {
-    logger.fatal('Event-driven mode enabled but webhook_secret not configured');
+    contextLogger.fatal('Event-driven mode enabled but webhook_secret not configured');
     throw new Error('webhook_secret is required for event-driven mode');
   }
 

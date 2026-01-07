@@ -21,7 +21,7 @@ const validationOverrideSchema = Joi.object({
   validation_notes: Joi.string().optional(),
 });
 
-export function validateGenerateRequest(req: Request, res: Response, next: NextFunction): void {
+export function validateGenerateRequest(req: Request, _res: Response, next: NextFunction): void {
   const { error } = specificationInputSchema.validate(req.body);
 
   if (error) {
@@ -31,7 +31,7 @@ export function validateGenerateRequest(req: Request, res: Response, next: NextF
   }
 }
 
-export function validateValidationOverride(req: Request, res: Response, next: NextFunction): void {
+export function validateValidationOverride(req: Request, _res: Response, next: NextFunction): void {
   const { error } = validationOverrideSchema.validate(req.body);
 
   if (error) {

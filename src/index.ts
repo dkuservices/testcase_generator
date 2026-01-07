@@ -7,12 +7,13 @@ import { initializeScheduledMode } from './modes/scheduled';
 import { initializeEventDrivenMode } from './modes/event-driven';
 import { initializeCostTracking } from './monitoring/cost-tracker';
 import { initializeMetricsCollection } from './monitoring/metrics-collector';
-import logger from './utils/logger';
+import logger, { createContextLogger } from './utils/logger';
 
 dotenv.config();
 
 async function main(): Promise<void> {
   logger.info('Starting AI Orchestrator Module 4.1');
+  const contextLogger = createContextLogger({ step: 'startup' });
 
   try {
     const config = await loadConfigurations();
@@ -49,7 +50,7 @@ async function main(): Promise<void> {
     process.on('SIGTERM', () => gracefulShutdown());
     process.on('SIGINT', () => gracefulShutdown());
   } catch (error) {
-    logger.fatal('Fatal error during startup', {
+    contextLogger.fatal('Fatal error during startup', {
       error: (error as Error).message,
       stack: (error as Error).stack,
     });

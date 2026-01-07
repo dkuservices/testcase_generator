@@ -27,7 +27,7 @@ export function createExpressApp(config: AppConfig): Express {
 
   app.use(express.json());
 
-  app.use((req, res, next) => {
+  app.use((req, _res, next) => {
     logger.info('API request', {
       method: req.method,
       path: req.path,

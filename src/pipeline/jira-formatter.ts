@@ -1,7 +1,7 @@
 import { GeneratedTestScenario } from '../models/test-scenario';
 import { JiraConfig } from '../models/config';
 import { saveJiraPayload, saveJiraPayloadSummary } from '../storage/file-manager';
-import logger, { createContextLogger } from '../utils/logger';
+import { createContextLogger } from '../utils/logger';
 
 export async function formatForJira(
   scenarios: GeneratedTestScenario[],

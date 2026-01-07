@@ -4,7 +4,7 @@ import { NormalizedInput } from '../models/specification-input';
 import { PromptMessages } from './prompt-builder';
 import { generateTestId } from '../utils/uuid-generator';
 import { retryWithBackoff, isRateLimitError, isRetryableError } from '../utils/retry-handler';
-import logger, { createContextLogger } from '../utils/logger';
+import { createContextLogger } from '../utils/logger';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,

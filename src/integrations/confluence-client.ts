@@ -1,8 +1,8 @@
-import ConfluenceAPI from 'confluence.js';
+import { ConfluenceClient } from 'confluence.js';
 import { SpecificationInput } from '../models/specification-input';
 import { ConfluenceConfig } from '../models/config';
 import { extractTextFromConfluence } from '../utils/html-parser';
-import { retryWithBackoff, isRetryableError } from '../utils/retry-handler';
+import { retryWithBackoff } from '../utils/retry-handler';
 import logger from '../utils/logger';
 
 const confluenceUrl = process.env.CONFLUENCE_BASE_URL;
@@ -13,7 +13,7 @@ if (!confluenceUrl || !confluenceEmail || !confluenceToken) {
   logger.error('Confluence credentials not configured');
 }
 
-const confluence = new ConfluenceAPI({
+const confluence = new ConfluenceClient({
   host: confluenceUrl || '',
   authentication: {
     basic: {
@@ -29,7 +29,7 @@ export async function fetchConfluencePage(pageId: string): Promise<Specification
   try {
     const page = await retryWithBackoff(
       async () => {
-        return await confluence.content.getById({
+        return await confluence.content.getContentById({
           id: pageId,
           expand: ['body.storage', 'version'],
         });
@@ -97,7 +97,7 @@ export async function searchConfluencePages(
 
       logger.debug('Executing Confluence CQL search', { space_key: spaceKey, cql });
 
-      const searchResult = await confluence.contentSearch.searchByCQL({
+      const searchResult = await confluence.search.searchByCQL({
         cql,
         limit: 100,
       });
