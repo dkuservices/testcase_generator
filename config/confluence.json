@@ -1,0 +1,13 @@
+{
+  "monitored_spaces": ["SPACE1", "SPACE2"],
+  "polling_interval_minutes": 60,
+  "page_filters": {
+    "include_labels": ["qa-ready", "test-generation"],
+    "exclude_labels": ["draft", "archived"]
+  },
+  "content_extraction": {
+    "remove_comments": true,
+    "remove_attachments": true,
+    "remove_macros": true
+  }
+}

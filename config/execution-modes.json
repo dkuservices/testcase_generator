@@ -1,0 +1,19 @@
+{
+  "scheduled": {
+    "enabled": false,
+    "cron_expression": "0 */6 * * *",
+    "description": "Run every 6 hours"
+  },
+  "event_driven": {
+    "enabled": false,
+    "webhook_secret": "change-this-secret-in-production"
+  },
+  "manual": {
+    "enabled": true,
+    "api_port": 3000,
+    "cors": {
+      "enabled": true,
+      "origins": ["http://localhost:3000"]
+    }
+  }
+}
