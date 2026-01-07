@@ -1,6 +1,6 @@
 import { SpecificationInput, NormalizedInput } from '../models/specification-input';
 import { stripHTMLTags } from '../utils/html-parser';
-import logger, { createContextLogger } from '../utils/logger';
+import { createContextLogger } from '../utils/logger';
 
 export async function normalizeInput(input: SpecificationInput): Promise<NormalizedInput> {
   const contextLogger = createContextLogger({

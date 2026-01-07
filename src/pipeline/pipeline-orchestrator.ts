@@ -1,5 +1,4 @@
 import { SpecificationInput } from '../models/specification-input';
-import { GeneratedTestScenario } from '../models/test-scenario';
 import { JobResults } from '../models/job';
 import { JiraConfig } from '../models/config';
 import { normalizeInput } from './normalizer';
@@ -8,7 +7,7 @@ import { invokeLLM } from './llm-client';
 import { validateScenarios } from './validator';
 import { formatForJira } from './jira-formatter';
 import { saveGeneratedScenarios, saveNeedsReviewScenarios, saveMetadata } from '../storage/file-manager';
-import logger, { createContextLogger } from '../utils/logger';
+import { createContextLogger } from '../utils/logger';
 
 export async function executePipeline(
   input: SpecificationInput,

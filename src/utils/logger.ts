@@ -83,5 +83,6 @@ export function createContextLogger(context: LogContext) {
     warn: (message: string, meta?: any) => logger.warn(message, { ...context, ...meta }),
     error: (message: string, meta?: any) => logger.error(message, { ...context, ...meta }),
     fatal: (message: string, meta?: any) => logger.log('error', message, { ...context, ...meta, fatal: true }),
+    log: (level: string, message: string, meta?: any) => logger.log(level, message, { ...context, ...meta }),
   };
 }

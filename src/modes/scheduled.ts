@@ -6,9 +6,11 @@ import { saveJob, updateJob } from '../storage/job-store';
 import { readSchedulerState, saveSchedulerState } from '../storage/file-manager';
 import { generateJobId } from '../utils/uuid-generator';
 import { Job } from '../models/job';
-import logger from '../utils/logger';
+import logger, { createContextLogger } from '../utils/logger';
 
 export function initializeScheduledMode(config: AppConfig): cron.ScheduledTask | null {
+  const contextLogger = createContextLogger({ step: 'scheduled-init' });
+
   if (!config.executionModes.scheduled.enabled) {
     logger.info('Scheduled mode disabled');
     return null;
@@ -19,7 +21,7 @@ export function initializeScheduledMode(config: AppConfig): cron.ScheduledTask |
   });
 
   if (!cron.validate(config.executionModes.scheduled.cron_expression)) {
-    logger.fatal('Invalid cron expression', {
+    contextLogger.fatal('Invalid cron expression', {
       cron_expression: config.executionModes.scheduled.cron_expression,
     });
     throw new Error('Invalid cron expression for scheduled mode');

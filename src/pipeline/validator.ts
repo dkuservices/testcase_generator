@@ -1,7 +1,7 @@
 import { GeneratedTestScenario } from '../models/test-scenario';
 import { NormalizedInput } from '../models/specification-input';
 import { containsNewConcepts } from '../utils/text-similarity';
-import logger, { createContextLogger } from '../utils/logger';
+import { createContextLogger } from '../utils/logger';
 
 export async function validateScenarios(
   scenarios: GeneratedTestScenario[],

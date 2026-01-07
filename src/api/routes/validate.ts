@@ -1,6 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { getJob, updateJob } from '../../storage/job-store';
-import { GeneratedTestScenario } from '../../models/test-scenario';
 import { JiraConfig } from '../../models/config';
 import { formatForJira } from '../../pipeline/jira-formatter';
 import { ApiError } from '../middleware/error-handler';
