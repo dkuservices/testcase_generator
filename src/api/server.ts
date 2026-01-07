@@ -1,0 +1,67 @@
+import express, { Express } from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import { AppConfig } from '../models/config';
+import { createGenerateRoute } from './routes/generate';
+import statusRoutes from './routes/status';
+import jobsRoutes from './routes/jobs';
+import { createValidateRoute } from './routes/validate';
+import { createWebhookRoute } from './routes/webhook';
+import { createHealthRoute } from './routes/health';
+import { errorHandler } from './middleware/error-handler';
+import logger from '../utils/logger';
+
+export function createExpressApp(config: AppConfig): Express {
+  const app = express();
+
+  app.use(helmet());
+
+  if (config.executionModes.manual.cors?.enabled) {
+    app.use(
+      cors({
+        origin: config.executionModes.manual.cors.origins,
+        credentials: true,
+      })
+    );
+  }
+
+  app.use(express.json());
+
+  app.use((req, res, next) => {
+    logger.info('API request', {
+      method: req.method,
+      path: req.path,
+      ip: req.ip,
+    });
+    next();
+  });
+
+  app.use('/api/generate', createGenerateRoute(config.jira));
+  app.use('/api/status', statusRoutes);
+  app.use('/api/jobs', jobsRoutes);
+  app.use('/api/validate', createValidateRoute(config.jira));
+
+  if (config.executionModes.event_driven.enabled) {
+    app.use(
+      '/api/webhook/confluence',
+      createWebhookRoute(config.executionModes.event_driven.webhook_secret, config.confluence, config.jira)
+    );
+  }
+
+  app.use('/api/health', createHealthRoute(config.executionModes));
+
+  app.use(errorHandler);
+
+  logger.info('Express app initialized', {
+    cors_enabled: config.executionModes.manual.cors?.enabled,
+    webhook_enabled: config.executionModes.event_driven.enabled,
+  });
+
+  return app;
+}
+
+export function startExpressServer(app: Express, port: number): void {
+  app.listen(port, () => {
+    logger.info(`Express server started on port ${port}`);
+  });
+}

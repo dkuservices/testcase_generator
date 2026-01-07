@@ -1,0 +1,12 @@
+{
+  "project_key": "PROJ",
+  "test_issue_type": "Test",
+  "custom_field_mappings": {
+    "preconditions": "customfield_10001",
+    "test_steps": "customfield_10002",
+    "expected_result": "customfield_10003",
+    "parent_issue_link": "customfield_10004"
+  },
+  "default_priority": "Medium",
+  "auto_create_enabled": false
+}

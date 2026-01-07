@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment variables
+.env
+
+# Logs
+logs/*.log
+logs/cost-reports/*.json
+logs/metrics/*.json
+
+# Runtime data
+data/generated/*.json
+data/needs_review/*.json
+data/jira_payloads/*.json
+data/jobs/*.json
+data/metadata/*.json
+data/scheduler_state.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing (future)
+coverage/
+.nyc_output/

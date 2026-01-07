@@ -1,0 +1,25 @@
+import OpenAI from 'openai';
+import logger from '../utils/logger';
+
+export function createOpenAIClient(): OpenAI {
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (!apiKey) {
+    logger.fatal('OPENAI_API_KEY environment variable not set');
+    throw new Error('OPENAI_API_KEY is required');
+  }
+
+  logger.info('OpenAI client initialized', {
+    model: process.env.OPENAI_MODEL || 'gpt-4-turbo',
+  });
+
+  return new OpenAI({ apiKey });
+}
+
+export function getOpenAIConfig() {
+  return {
+    model: process.env.OPENAI_MODEL || 'gpt-4-turbo',
+    temperature: parseFloat(process.env.OPENAI_TEMPERATURE || '0.2'),
+    maxTokens: parseInt(process.env.OPENAI_MAX_TOKENS || '3000', 10),
+  };
+}
