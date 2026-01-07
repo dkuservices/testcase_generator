@@ -1,5 +1,5 @@
 import { NormalizedInput } from '../models/specification-input';
-import logger, { createContextLogger } from '../utils/logger';
+import { createContextLogger } from '../utils/logger';
 
 export interface PromptMessages {
   systemMessage: string;
