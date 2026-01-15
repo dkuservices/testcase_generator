@@ -135,7 +135,7 @@ export class ClaudeProvider implements LlmProvider {
     const systemMsg = messages.find(m => m.role === 'system')?.content || '';
     const userMsg = messages.find(m => m.role === 'user')?.content || '';
 
-    // Build CLI arguments
+    // Build CLI arguments (NO prompt text in args - will use stdin instead)
     const args = [
       '--print',                                    // Non-interactive mode
       '--output-format', 'json',                    // Get JSON response
@@ -143,7 +143,7 @@ export class ClaudeProvider implements LlmProvider {
       '--no-session-persistence'                    // Don't save session
     ];
 
-    // Add system prompt if provided
+    // Add system prompt as argument (shorter, should fit)
     if (systemMsg) {
       args.push('--system-prompt', systemMsg);
     }
@@ -154,20 +154,29 @@ export class ClaudeProvider implements LlmProvider {
       promptText += '\n\nIMPORTANT: You must respond with valid JSON only. Do not add any explanatory text outside the JSON structure.';
     }
 
-    // Add the prompt as the last argument
-    args.push(promptText);
+    // NOTE: We'll pass the prompt via stdin to avoid Windows command-line length limits
 
     contextLogger.log('silly', 'Executing Claude CLI', {
-      args: args.map((arg, i) => i === args.length - 1 ? arg.substring(0, 100) + '...' : arg)
+      args: args,
+      prompt_length: promptText.length
     });
 
     // Spawn Claude CLI process
     return new Promise((resolve, reject) => {
       const claude = spawn(this.cliPath, args, {
         timeout: this.timeoutMs,
-        stdio: ['ignore', 'pipe', 'pipe'],  // stdin ignored, capture stdout/stderr
+        stdio: ['pipe', 'pipe', 'pipe'],  // Use stdin pipe for prompt input
         shell: process.platform === 'win32'  // Use shell on Windows
       });
+
+      // Write prompt to stdin and close it
+      try {
+        claude.stdin.write(promptText);
+        claude.stdin.end();
+      } catch (error) {
+        reject(new Error(`Failed to write prompt to stdin: ${(error as Error).message}`));
+        return;
+      }
 
       let stdout = '';
       let stderr = '';
