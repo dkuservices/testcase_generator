@@ -6,7 +6,7 @@ export async function normalizeInput(input: SpecificationInput): Promise<Normali
   const contextLogger = createContextLogger({
     step: 'normalization',
     confluence_page_id: input.confluence_page_id,
-    parent_jira_issue_id: input.metadata.parent_jira_issue_id,
+    parent_jira_issue_id: input.metadata?.parent_jira_issue_id,
   });
 
   contextLogger.debug('Starting input normalization');
@@ -16,9 +16,9 @@ export async function normalizeInput(input: SpecificationInput): Promise<Normali
     throw new Error('Cannot normalize empty input - all fields are empty');
   }
 
-  let normalizedTitle = cleanText(input.title);
-  let normalizedDescription = cleanText(stripHTMLTags(input.description));
-  let normalizedAcceptanceCriteria = cleanText(stripHTMLTags(input.acceptance_criteria));
+  let normalizedTitle = cleanText(input.title || '');
+  let normalizedDescription = cleanText(stripHTMLTags(input.description || ''));
+  let normalizedAcceptanceCriteria = cleanText(stripHTMLTags(input.acceptance_criteria || ''));
 
   if (!normalizedAcceptanceCriteria && normalizedDescription) {
     contextLogger.warn('Empty acceptance criteria, using description as primary source');
@@ -44,14 +44,21 @@ export async function normalizeInput(input: SpecificationInput): Promise<Normali
 
   normalizedText = removeDuplicateSentences(normalizedText);
 
+  // Ensure metadata is available with defaults
+  const metadata = input.metadata || {
+    system_type: 'web' as const,
+    feature_priority: 'medium' as const,
+    parent_jira_issue_id: 'UNKNOWN'
+  };
+
   const normalizedInput: NormalizedInput = {
     normalized_text: normalizedText,
-    metadata: input.metadata,
+    metadata: metadata,
     original_input: input,
   };
 
   contextLogger.debug('Input normalization completed', {
-    original_length: input.title.length + input.description.length + input.acceptance_criteria.length,
+    original_length: (input.title || '').length + (input.description || '').length + (input.acceptance_criteria || '').length,
     normalized_length: normalizedText.length,
   });
 

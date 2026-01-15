@@ -3,21 +3,25 @@ import Joi from 'joi';
 import { ApiError } from './error-handler';
 
 const specificationInputSchema = Joi.object({
-  title: Joi.string().required(),
-  description: Joi.string().required(),
-  acceptance_criteria: Joi.string().required(),
+  // Link-based input (new approach)
+  link: Joi.string().uri().optional(),
+  
+  // Original fields - now optional when link is provided
+  title: Joi.string().optional(),
+  description: Joi.string().optional(),
+  acceptance_criteria: Joi.string().optional(),
   metadata: Joi.object({
     system_type: Joi.string().valid('web', 'api', 'mobile').required(),
     feature_priority: Joi.string().valid('critical', 'high', 'medium', 'low').required(),
     parent_jira_issue_id: Joi.string().required(),
-  }).required(),
+  }).optional(),
   confluence_page_id: Joi.string().optional(),
   confluence_version: Joi.string().optional(),
-});
+}).or('link', 'title'); // Either link OR title must be provided
 
 const validationOverrideSchema = Joi.object({
   test_id: Joi.string().required(),
-  validation_status: Joi.string().valid('validated', 'needs_review').required(),
+  validation_status: Joi.string().valid('validated', 'needs_review', 'dismissed').required(),
   validation_notes: Joi.string().optional(),
 });
 

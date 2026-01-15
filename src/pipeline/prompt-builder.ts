@@ -14,7 +14,7 @@ export function buildPrompt(normalizedInput: NormalizedInput): PromptMessages {
 
   contextLogger.debug('Building LLM prompt');
 
-  const systemMessage = `You are a QA test scenario generator. Your task is to generate human-readable test scenarios, NOT test code or test scripts.
+const systemMessage = `You are a QA test scenario generator. Your task is to generate human-readable test scenarios, NOT test code or test scripts.
 
 STRICT RULES:
 1. Generate test SCENARIOS only - no code, no automation scripts
@@ -23,6 +23,7 @@ STRICT RULES:
 4. Each scenario must be traceable to the specification
 5. Be deterministic and factual - low creativity
 6. Output must be valid JSON matching the provided schema
+7. Output all scenario's test steps in Slovakian language
 
 For each scenario, classify it as:
 - happy_path: Valid inputs, normal flow, positive outcomes
@@ -36,8 +37,9 @@ PARENT JIRA ISSUE: ${normalizedInput.metadata.parent_jira_issue_id}
 SPECIFICATION:
 ${normalizedInput.normalized_text}
 
-Generate comprehensive test scenarios covering happy path, negative cases, and edge cases. Output as JSON array of test scenarios matching this schema:
-[{
+Generate comprehensive test scenarios covering happy path, negative cases, and edge cases. Output as JSON object with a single key "scenarios" containing an array of test scenarios matching this schema:
+{
+  "scenarios": [{
   "test_name": "string",
   "test_type": "functional" | "regression" | "smoke",
   "scenario_classification": "happy_path" | "negative" | "edge_case",
@@ -45,7 +47,8 @@ Generate comprehensive test scenarios covering happy path, negative cases, and e
   "test_steps": ["step1", "step2", ...],
   "expected_result": "string",
   "priority": "critical" | "high" | "medium" | "low"
-}]`;
+  }]
+}`;
 
   contextLogger.debug('LLM prompt built', {
     system_message_length: systemMessage.length,

@@ -15,7 +15,7 @@ export interface GeneratedTestScenario {
     generated_at: string;
     llm_model: string;
   };
-  validation_status: 'validated' | 'needs_review' | 'failed';
+  validation_status: 'validated' | 'needs_review' | 'failed' | 'dismissed';
   validation_notes?: string;
 }
 

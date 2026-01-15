@@ -21,6 +21,7 @@
     "jira-client": "^8.2.2",
     "joi": "^17.11.0",
     "node-cron": "^3.0.3",
+    "ollama": "^0.6.3",
     "openai": "^4.24.1",
     "string-similarity": "^4.0.4",
     "uuid": "^9.0.1",

@@ -77,7 +77,7 @@ export async function invokeLLM(
       throw new Error('Empty response from LLM');
     }
 
-    let parsedResponse: { scenarios?: LLMTestScenarioOutput[] };
+    let parsedResponse: unknown;
     try {
       parsedResponse = JSON.parse(response.choices[0].message.content);
     } catch (error) {
@@ -88,10 +88,13 @@ export async function invokeLLM(
       throw new Error('Invalid JSON response from LLM');
     }
 
-    const scenarios = parsedResponse.scenarios || (Array.isArray(parsedResponse) ? parsedResponse : []);
+    const scenarios = extractScenarios(parsedResponse);
 
     if (!Array.isArray(scenarios) || scenarios.length === 0) {
-      contextLogger.warn('LLM returned no scenarios');
+      contextLogger.warn('LLM returned no scenarios', {
+        parsed_type: typeof parsedResponse,
+        parsed_keys: parsedResponse && typeof parsedResponse === 'object' ? Object.keys(parsedResponse as object) : []
+      });
       return [];
     }
 
@@ -113,6 +116,36 @@ export async function invokeLLM(
     });
     throw error;
   }
+}
+
+function extractScenarios(parsedResponse: unknown): any[] {
+  if (Array.isArray(parsedResponse)) {
+    return parsedResponse;
+  }
+
+  if (!parsedResponse || typeof parsedResponse !== 'object') {
+    return [];
+  }
+
+  const candidate = parsedResponse as Record<string, any>;
+  const direct =
+    candidate.scenarios ||
+    candidate.test_scenarios ||
+    candidate.testScenarios ||
+    candidate.items ||
+    candidate.data;
+
+  if (Array.isArray(direct)) {
+    return direct;
+  }
+
+  for (const value of Object.values(candidate)) {
+    if (Array.isArray(value)) {
+      return value;
+    }
+  }
+
+  return [];
 }
 
 function enrichScenario(

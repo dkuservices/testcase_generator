@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Scenario Review</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/ui/review.css">
+    <script defer src="/ui/review.js"></script>
+  </head>
+  <body>
+    <main class="page">
+      <header class="header">
+        <div>
+          <p class="eyebrow">Needs Review</p>
+          <h1>Scenario Review Desk</h1>
+          <p class="subtitle">Accept, edit, or dismiss scenarios that need human verification.</p>
+        </div>
+        <div class="actions">
+          <button class="ghost" id="refreshButton">Refresh</button>
+          <div class="status-pill" id="countPill">0 scenarios</div>
+        </div>
+      </header>
+
+      <section class="controls">
+        <label class="control">
+          <span>Status</span>
+          <select id="statusFilter">
+            <option value="needs_review">Needs review</option>
+            <option value="all">Needs review + dismissed</option>
+          </select>
+        </label>
+        <label class="control grow">
+          <span>Search</span>
+          <input id="searchInput" type="search" placeholder="Filter by title, job id, or Jira id">
+        </label>
+      </section>
+
+      <section id="content" class="content">
+        <div class="empty" id="emptyState">
+          <h2>Nothing to review</h2>
+          <p>When scenarios are marked as needs review, they show up here.</p>
+        </div>
+        <div class="grid" id="scenarioGrid"></div>
+      </section>
+    </main>
+
+    <div class="modal hidden" id="editModal" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="modal-card">
+        <header>
+          <h2>Edit Scenario</h2>
+          <button class="icon" id="closeModal" aria-label="Close">X</button>
+        </header>
+        <form id="editForm">
+          <input type="hidden" id="editJobId">
+          <input type="hidden" id="editTestId">
+          <div class="form-grid">
+            <label>
+              <span>Test name</span>
+              <input id="editTestName" required>
+            </label>
+            <label>
+              <span>Test type</span>
+              <select id="editTestType">
+                <option value="functional">Functional</option>
+                <option value="regression">Regression</option>
+                <option value="smoke">Smoke</option>
+              </select>
+            </label>
+            <label>
+              <span>Classification</span>
+              <select id="editClassification">
+                <option value="happy_path">Happy path</option>
+                <option value="negative">Negative</option>
+                <option value="edge_case">Edge case</option>
+              </select>
+            </label>
+            <label>
+              <span>Priority</span>
+              <select id="editPriority">
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </label>
+          </div>
+          <label>
+            <span>Preconditions</span>
+            <textarea id="editPreconditions" rows="3"></textarea>
+          </label>
+          <label>
+            <span>Test steps (one per line)</span>
+            <textarea id="editSteps" rows="6"></textarea>
+          </label>
+          <label>
+            <span>Expected result</span>
+            <textarea id="editExpected" rows="3"></textarea>
+          </label>
+          <label>
+            <span>Notes</span>
+            <input id="editNotes" placeholder="Optional reviewer notes">
+          </label>
+          <div class="modal-actions">
+            <button type="button" class="ghost" id="cancelEdit">Cancel</button>
+            <button type="submit" class="primary">Save changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </body>
+</html>

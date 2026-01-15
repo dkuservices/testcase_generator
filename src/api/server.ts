@@ -1,4 +1,5 @@
 import express, { Express } from 'express';
+import path from 'path';
 import cors from 'cors';
 import helmet from 'helmet';
 import { AppConfig } from '../models/config';
@@ -8,6 +9,7 @@ import jobsRoutes from './routes/jobs';
 import { createValidateRoute } from './routes/validate';
 import { createWebhookRoute } from './routes/webhook';
 import { createHealthRoute } from './routes/health';
+import reviewRoutes from './routes/review';
 import { errorHandler } from './middleware/error-handler';
 import logger from '../utils/logger';
 
@@ -26,6 +28,17 @@ export function createExpressApp(config: AppConfig): Express {
   }
 
   app.use(express.json());
+  const publicDir = path.join(process.cwd(), 'public');
+  app.use('/ui', express.static(publicDir));
+  app.get('/', (_req, res) => {
+    res.sendFile(path.join(publicDir, 'generate.html'));
+  });
+  app.get('/generate', (_req, res) => {
+    res.sendFile(path.join(publicDir, 'generate.html'));
+  });
+  app.get('/review', (_req, res) => {
+    res.sendFile(path.join(publicDir, 'review.html'));
+  });
 
   app.use((req, _res, next) => {
     logger.info('API request', {
@@ -40,6 +53,7 @@ export function createExpressApp(config: AppConfig): Express {
   app.use('/api/status', statusRoutes);
   app.use('/api/jobs', jobsRoutes);
   app.use('/api/validate', createValidateRoute(config.jira));
+  app.use('/api/review', reviewRoutes);
 
   if (config.executionModes.event_driven.enabled) {
     app.use(
@@ -61,7 +75,11 @@ export function createExpressApp(config: AppConfig): Express {
 }
 
 export function startExpressServer(app: Express, port: number): void {
-  app.listen(port, () => {
+  const server = app.listen(port, '0.0.0.0', () => {
     logger.info(`Express server started on port ${port}`);
+  });
+  
+  server.on('error', (error: any) => {
+    logger.error('Express server error', { error: error.message, port });
   });
 }

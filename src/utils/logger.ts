@@ -1,9 +1,36 @@
 import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 import path from 'path';
+import fs from 'fs';
+import util from 'util';
 
-const logLevel = process.env.LOG_LEVEL || 'info';
-const isDevelopment = process.env.NODE_ENV === 'development';
+const rawLogLevel = (process.env.LOG_LEVEL || 'info').toLowerCase();
+const levelMap: Record<string, string> = {
+  trace: 'silly',
+  silly: 'silly',
+  debug: 'debug',
+  verbose: 'verbose',
+  info: 'info',
+  warn: 'warn',
+  warning: 'warn',
+  error: 'error',
+  fatal: 'error',
+};
+const mappedLogLevel = levelMap[rawLogLevel];
+const logLevel = mappedLogLevel || 'info';
+
+if (!mappedLogLevel) {
+  console.warn(`Unknown LOG_LEVEL="${rawLogLevel}", defaulting to "${logLevel}".`);
+}
+
+const logsDir = path.join(process.cwd(), 'logs');
+try {
+  if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+  }
+} catch (error) {
+  console.warn('Failed to ensure logs directory exists:', (error as Error).message);
+}
 
 const customFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DDTHH:mm:ss.SSSZ' }),
@@ -16,33 +43,28 @@ const consoleFormat = winston.format.combine(
   winston.format.errors({ stack: true }),
   winston.format.colorize(),
   winston.format.printf(({ timestamp, level, message, ...meta }) => {
-    let msg = `${timestamp} [${level}]: ${message}`;
-    if (Object.keys(meta).length > 0) {
-      msg += ` ${JSON.stringify(meta)}`;
-    }
-    return msg;
+    const metaKeys = Object.keys(meta);
+    const metaSuffix =
+      metaKeys.length > 0
+        ? ` ${util.inspect(meta, { depth: 6, colors: false, breakLength: 120 })}`
+        : '';
+    return `${timestamp} [${level}]: ${message}${metaSuffix}`;
   })
 );
 
 const transports: winston.transport[] = [];
 
-if (isDevelopment) {
-  transports.push(
-    new winston.transports.Console({
-      format: consoleFormat,
-    })
-  );
-} else {
-  transports.push(
-    new winston.transports.Console({
-      format: customFormat,
-    })
-  );
-}
+// Always add console transport for both development and production
+// Use colorized format for development, JSON format for production
+transports.push(
+  new winston.transports.Console({
+    format: consoleFormat,
+  })
+);
 
 transports.push(
   new DailyRotateFile({
-    filename: path.join('logs', 'app-%DATE%.log'),
+    filename: path.join(logsDir, 'app-%DATE%.log'),
     datePattern: 'YYYY-MM-DD',
     maxFiles: '30d',
     format: customFormat,
@@ -51,7 +73,7 @@ transports.push(
 
 transports.push(
   new DailyRotateFile({
-    filename: path.join('logs', 'error-%DATE%.log'),
+    filename: path.join(logsDir, 'error-%DATE%.log'),
     datePattern: 'YYYY-MM-DD',
     maxFiles: '90d',
     level: 'error',
@@ -62,6 +84,25 @@ transports.push(
 const logger = winston.createLogger({
   level: logLevel,
   transports,
+  exitOnError: false,
+  exceptionHandlers: [
+    new winston.transports.Console({ format: consoleFormat }),
+    new DailyRotateFile({
+      filename: path.join(logsDir, 'exceptions-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+      maxFiles: '90d',
+      format: customFormat,
+    }),
+  ],
+  rejectionHandlers: [
+    new winston.transports.Console({ format: consoleFormat }),
+    new DailyRotateFile({
+      filename: path.join(logsDir, 'rejections-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+      maxFiles: '90d',
+      format: customFormat,
+    }),
+  ],
 });
 
 export default logger;

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Scenario Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Playfair+Display:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/ui/generate.css">
+    <script defer src="/ui/generate.js"></script>
+  </head>
+  <body>
+    <main class="page">
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Manual Launch</p>
+          <h1>Test Scenario Generator</h1>
+          <p class="subtitle">Paste a Confluence link and kick off a fresh scenario run in seconds.</p>
+        </div>
+        <div class="hero-card">
+          <div class="chip">Manual mode</div>
+          <p>Uses the configured LLM provider and validation pipeline.</p>
+          <a class="ghost-link" href="/review">Open review desk</a>
+        </div>
+      </header>
+
+      <section class="panel">
+        <form id="generateForm" class="form">
+          <label class="field">
+            <span>Confluence page link</span>
+            <input id="linkInput" name="link" type="url" required placeholder="https://your-domain.atlassian.net/wiki/spaces/SPACE/pages/123456/Page+Title">
+          </label>
+          <div class="actions">
+            <button type="submit" class="primary" id="submitButton">Start generation</button>
+            <button type="button" class="ghost" id="resetButton">Clear</button>
+          </div>
+        </form>
+
+        <div class="status" id="statusPanel">
+          <div class="status-line" id="statusMessage">Paste a link to begin.</div>
+          <div class="status-meta" id="statusMeta"></div>
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="note">
+          <h3>What happens next</h3>
+          <p>The pipeline fetches the spec, builds the prompt, and validates every scenario before output.</p>
+        </article>
+        <article class="note">
+          <h3>Need review?</h3>
+          <p>Anything flagged as needs review appears in the review desk automatically.</p>
+        </article>
+        <article class="note">
+          <h3>Keep it clean</h3>
+          <p>Only Confluence page links are supported for this quick launch workflow.</p>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

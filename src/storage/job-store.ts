@@ -92,7 +92,7 @@ export async function listJobs(
   const jobSummaries: JobSummary[] = jobs.map(job => ({
     job_id: job.job_id,
     status: job.status,
-    parent_jira_issue_id: job.input.metadata.parent_jira_issue_id,
+    parent_jira_issue_id: job.input.metadata?.parent_jira_issue_id || '',
     created_at: job.created_at,
     completed_at: job.completed_at,
     scenario_count: job.results?.total_scenarios,

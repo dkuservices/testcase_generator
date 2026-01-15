@@ -164,9 +164,16 @@ npm run build
 
 ### POST /api/generate
 
-Trigger test scenario generation from manual input.
+Trigger test scenario generation from manual input or Confluence link.
 
-**Request:**
+**Option 1: Link-based input (Recommended):**
+```json
+{
+  "link": "https://your-domain.atlassian.net/wiki/spaces/SPACE/pages/123456/Page+Title"
+}
+```
+
+**Option 2: Manual input (Legacy):**
 ```json
 {
   "title": "User Login Feature",
@@ -181,6 +188,12 @@ Trigger test scenario generation from manual input.
   "confluence_version": "1"
 }
 ```
+
+**Note:** When using the link-based approach, the system automatically:
+- Extracts the page ID from the Confluence URL
+- Fetches the page content from Confluence
+- Parses the content to extract title, description, and acceptance criteria
+- Sets default metadata values (can be overridden if needed)
 
 **Response (202 Accepted):**
 ```json

@@ -8,5 +8,23 @@
     "prompt_per_1k_tokens": 0.0015,
     "completion_per_1k_tokens": 0.002,
     "last_updated": "2024-01-15"
+  },
+  "sonnet": {
+    "prompt_per_1k_tokens": 0.0,
+    "completion_per_1k_tokens": 0.0,
+    "last_updated": "2026-01-15",
+    "note": "Corporate license - no per-token charges"
+  },
+  "claude-sonnet-4-5-20250929": {
+    "prompt_per_1k_tokens": 0.0,
+    "completion_per_1k_tokens": 0.0,
+    "last_updated": "2026-01-15",
+    "note": "Corporate license - no per-token charges"
+  },
+  "haiku": {
+    "prompt_per_1k_tokens": 0.0,
+    "completion_per_1k_tokens": 0.0,
+    "last_updated": "2026-01-15",
+    "note": "Corporate license - no per-token charges"
   }
 }

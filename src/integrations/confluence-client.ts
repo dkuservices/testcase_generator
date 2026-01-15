@@ -1,3 +1,5 @@
+import https from 'https';
+import axios from 'axios';
 import { ConfluenceClient } from 'confluence.js';
 import { SpecificationInput } from '../models/specification-input';
 import { ConfluenceConfig } from '../models/config';
@@ -5,23 +7,36 @@ import { extractTextFromConfluence } from '../utils/html-parser';
 import { retryWithBackoff } from '../utils/retry-handler';
 import logger from '../utils/logger';
 
-const confluenceUrl = process.env.CONFLUENCE_BASE_URL;
-const confluenceEmail = process.env.CONFLUENCE_EMAIL;
-const confluenceToken = process.env.CONFLUENCE_API_TOKEN;
+const confluenceUrl = process.env.CONFLUENCE_BASE_URL?.trim();
+const confluenceEmail = process.env.CONFLUENCE_EMAIL?.trim();
+const confluenceToken = process.env.CONFLUENCE_API_TOKEN?.trim();
 
 if (!confluenceUrl || !confluenceEmail || !confluenceToken) {
-  logger.error('Confluence credentials not configured');
+  logger.error('Confluence credentials not configured', {
+    hasUrl: !!confluenceUrl,
+    hasEmail: !!confluenceEmail,
+    hasToken: !!confluenceToken,
+    url: confluenceUrl ? `${confluenceUrl.substring(0, 20)}...` : 'undefined',
+    email: confluenceEmail ? `${confluenceEmail.substring(0, 10)}...` : 'undefined'
+  });
 }
+
+const httpsAgent = new https.Agent({
+  rejectUnauthorized: false,
+});
+axios.defaults.httpsAgent = httpsAgent;
 
 const confluence = new ConfluenceClient({
   host: confluenceUrl || '',
+  apiPrefix: '/rest/',
   authentication: {
-    basic: {
-      email: confluenceEmail || '',
-      apiToken: confluenceToken || '',
-    },
+    personalAccessToken: process.env.CONFLUENCE_API_TOKEN || '',
+  },
+  baseRequestConfig: {
+    httpsAgent,
   },
 });
+
 
 export async function fetchConfluencePage(pageId: string): Promise<SpecificationInput | null> {
   logger.debug('Fetching Confluence page', { page_id: pageId });

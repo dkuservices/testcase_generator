@@ -8,9 +8,7 @@ dist/
 .env
 
 # Logs
-logs/*.log
-logs/cost-reports/*.json
-logs/metrics/*.json
+logs
 
 # Runtime data
 data/generated/*.json
@@ -34,3 +32,4 @@ Thumbs.db
 # Testing (future)
 coverage/
 .nyc_output/
+request.json

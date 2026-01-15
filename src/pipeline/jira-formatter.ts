@@ -18,7 +18,11 @@ export async function formatForJira(
   contextLogger.debug('Starting Jira payload formatting', { total_scenarios: scenarios.length });
 
   const validatedScenarios = scenarios.filter(s => s.validation_status === 'validated');
-  const failedScenarios = scenarios.filter(s => s.validation_status === 'needs_review' || s.validation_status === 'failed');
+  const failedScenarios = scenarios.filter(s =>
+    s.validation_status === 'needs_review' ||
+    s.validation_status === 'failed' ||
+    s.validation_status === 'dismissed'
+  );
 
   contextLogger.info('Filtering scenarios for Jira formatting', {
     validated: validatedScenarios.length,
