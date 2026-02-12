@@ -10,6 +10,15 @@ import { createValidateRoute } from './routes/validate';
 import { createWebhookRoute } from './routes/webhook';
 import { createHealthRoute } from './routes/health';
 import reviewRoutes from './routes/review';
+import exportRoutes from './routes/export';
+import { createBatchGenerateRoute } from './routes/batch-generate';
+import batchStatusRoutes from './routes/batch-status';
+import projectsRoutes from './routes/projects';
+import componentsRoutes from './routes/components';
+import { createPagesRoute } from './routes/pages';
+import hierarchyRoutes from './routes/hierarchy';
+import chatRoutes from './routes/chat';
+import { createDocumentsRoute } from './routes/documents';
 import { errorHandler } from './middleware/error-handler';
 import logger from '../utils/logger';
 
@@ -31,13 +40,34 @@ export function createExpressApp(config: AppConfig): Express {
   const publicDir = path.join(process.cwd(), 'public');
   app.use('/ui', express.static(publicDir));
   app.get('/', (_req, res) => {
-    res.sendFile(path.join(publicDir, 'generate.html'));
+    res.redirect('/projects');
+  });
+  app.get('/projects', (_req, res) => {
+    res.sendFile(path.join(publicDir, 'projects.html'));
+  });
+  app.get('/project/:id', (_req, res) => {
+    res.sendFile(path.join(publicDir, 'project.html'));
+  });
+  app.get('/component/:id', (_req, res) => {
+    res.sendFile(path.join(publicDir, 'component.html'));
+  });
+  app.get('/page/:id', (_req, res) => {
+    res.sendFile(path.join(publicDir, 'page.html'));
   });
   app.get('/generate', (_req, res) => {
     res.sendFile(path.join(publicDir, 'generate.html'));
   });
   app.get('/review', (_req, res) => {
     res.sendFile(path.join(publicDir, 'review.html'));
+  });
+  app.get('/jobs', (_req, res) => {
+    res.sendFile(path.join(publicDir, 'jobs.html'));
+  });
+  app.get('/documents', (_req, res) => {
+    res.sendFile(path.join(publicDir, 'documents.html'));
+  });
+  app.get('/document/:id', (_req, res) => {
+    res.sendFile(path.join(publicDir, 'document.html'));
   });
 
   app.use((req, _res, next) => {
@@ -54,6 +84,17 @@ export function createExpressApp(config: AppConfig): Express {
   app.use('/api/jobs', jobsRoutes);
   app.use('/api/validate', createValidateRoute(config.jira));
   app.use('/api/review', reviewRoutes);
+  app.use('/api/export', exportRoutes);
+  app.use('/api/batch/generate', createBatchGenerateRoute(config.jira));
+  app.use('/api/batch/status', batchStatusRoutes);
+
+  // Hierarchy routes
+  app.use('/api/projects', projectsRoutes);
+  app.use('/api/components', componentsRoutes);
+  app.use('/api/pages', createPagesRoute(config.jira));
+  app.use('/api/hierarchy', hierarchyRoutes);
+  app.use('/api/chat', chatRoutes);
+  app.use('/api/documents', createDocumentsRoute(config.jira));
 
   if (config.executionModes.event_driven.enabled) {
     app.use(

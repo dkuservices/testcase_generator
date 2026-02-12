@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Projects - Test Scenario Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/ui/generate.css">
+    <link rel="stylesheet" href="/ui/hierarchy.css">
+    <script defer src="/ui/sidebar.js"></script>
+    <script defer src="/ui/projects.js"></script>
+  </head>
+  <body>
+    <div class="app-layout">
+      <!-- Sidebar -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <h2>Test Generator</h2>
+          <p>Project hierarchy</p>
+        </div>
+        <nav class="sidebar-nav" id="sidebarTree">
+          <!-- Tree will be populated by sidebar.js -->
+        </nav>
+        <div class="sidebar-actions">
+          <a href="/generate" class="sidebar-link">
+            <span>+</span> Quick Generate
+          </a>
+          <a href="/review" class="sidebar-link">
+            <span>!</span> Review Desk
+          </a>
+          <a href="/jobs" class="sidebar-link">
+            <span>&#9881;</span> Joby
+          </a>
+          <a href="/documents" class="sidebar-link">
+            <span>&#128196;</span> Dokumenty
+          </a>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <div class="breadcrumb">
+          <span class="current">Projects</span>
+        </div>
+
+        <div class="page-header">
+          <h1>Projects</h1>
+          <p>Manage your test scenario projects and their components</p>
+        </div>
+
+        <div class="action-bar">
+          <div class="action-bar-left">
+            <span id="projectCount">0 projects</span>
+          </div>
+          <div class="action-bar-right">
+            <button type="button" class="primary" id="createProjectBtn">New Project</button>
+          </div>
+        </div>
+
+        <div class="stats-row" id="statsRow">
+          <div class="stat-box">
+            <div class="stat-value" id="totalProjects">0</div>
+            <div class="stat-label">Projects</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="totalComponents">0</div>
+            <div class="stat-label">Components</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="totalPages">0</div>
+            <div class="stat-label">Pages</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="totalTests">0</div>
+            <div class="stat-label">Test Scenarios</div>
+          </div>
+        </div>
+
+        <div class="cards-grid" id="projectsGrid">
+          <!-- Projects will be populated here -->
+        </div>
+
+        <div class="empty-state" id="emptyState" style="display: none;">
+          <h3>No projects yet</h3>
+          <p>Create your first project to start organizing test scenarios</p>
+          <button type="button" class="primary" id="createProjectEmptyBtn">Create Project</button>
+        </div>
+      </main>
+    </div>
+
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar">Menu</button>
+
+    <!-- Create Project Modal (outside grid layout) -->
+    <div class="modal-overlay" id="createModal">
+      <div class="modal">
+        <h2>Create New Project</h2>
+        <form id="createProjectForm">
+          <div class="form-group">
+            <label for="projectName">Project Name</label>
+            <input type="text" id="projectName" name="name" required placeholder="e.g., User Management System">
+          </div>
+          <div class="form-group">
+            <label for="projectDescription">Description (optional)</label>
+            <textarea id="projectDescription" name="description" placeholder="Brief description of the project..."></textarea>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="ghost" id="cancelCreateBtn">Cancel</button>
+            <button type="submit" class="primary">Create Project</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Detail dokumentu - Test Scenario Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/ui/generate.css">
+    <link rel="stylesheet" href="/ui/hierarchy.css">
+    <link rel="stylesheet" href="/ui/review.css">
+    <link rel="stylesheet" href="/ui/documents.css">
+    <script defer src="/ui/sidebar.js"></script>
+    <script defer src="/ui/document.js"></script>
+  </head>
+  <body>
+    <div class="app-layout">
+      <!-- Sidebar -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <h2>Test Generator</h2>
+          <p>Project hierarchy</p>
+        </div>
+        <nav class="sidebar-nav" id="sidebarTree"></nav>
+        <div class="sidebar-actions">
+          <a href="/generate" class="sidebar-link">
+            <span>+</span> Quick Generate
+          </a>
+          <a href="/review" class="sidebar-link">
+            <span>!</span> Review Desk
+          </a>
+          <a href="/jobs" class="sidebar-link">
+            <span>&#9881;</span> Joby
+          </a>
+          <a href="/documents" class="sidebar-link active">
+            <span>&#128196;</span> Dokumenty
+          </a>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <div class="breadcrumb">
+          <a href="/projects">Projects</a>
+          <span>/</span>
+          <a href="/documents">Dokumenty</a>
+          <span>/</span>
+          <span class="current" id="breadcrumbTitle">Detail dokumentu</span>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="empty-scenarios">
+          <p>Nacitavam dokument...</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="errorState" class="empty-scenarios" style="display: none;">
+          <h3>Chyba</h3>
+          <p id="errorMessage"></p>
+          <a href="/documents" class="primary" style="display: inline-block; margin-top: 16px; padding: 12px 24px; text-decoration: none; border-radius: 8px;">Spat na dokumenty</a>
+        </div>
+
+        <!-- Document Content -->
+        <div id="documentContent" style="display: none;">
+          <!-- Document Info -->
+          <div class="document-info">
+            <h2>
+              <span id="documentFilename">Dokument</span>
+              <span class="status-badge" id="documentStatus"></span>
+            </h2>
+            <div class="info-grid">
+              <div class="info-item">
+                <div class="info-item-label">Celky</div>
+                <div class="info-item-value" id="pagesCount">0</div>
+              </div>
+              <div class="info-item">
+                <div class="info-item-label">Zmenove poziadavky</div>
+                <div class="info-item-value" id="changeRequestsCount">0</div>
+              </div>
+              <div class="info-item">
+                <div class="info-item-label">Vygenerovane testy</div>
+                <div class="info-item-value" id="totalScenarios">0</div>
+              </div>
+              <div class="info-item">
+                <div class="info-item-label">Validovane</div>
+                <div class="info-item-value validated" id="validatedScenarios">0</div>
+              </div>
+              <div class="info-item">
+                <div class="info-item-label">Na kontrolu</div>
+                <div class="info-item-value needs-review" id="needsReviewScenarios">0</div>
+              </div>
+              <div class="info-item">
+                <div class="info-item-label">Spracovane</div>
+                <div class="info-item-value" id="parsedAt">-</div>
+              </div>
+            </div>
+            <div class="document-actions">
+              <button type="button" class="warn" id="requestManualBtn" style="display: none;">Pridat prirucku</button>
+              <button type="button" class="primary" id="generateBtn" style="display: none;">Generovat testy</button>
+              <button type="button" class="ghost" id="refreshBtn">Obnovit</button>
+              <button type="button" class="danger" id="deleteBtn">Zmazat</button>
+            </div>
+          </div>
+
+          <!-- Workflow Progress Indicator -->
+          <div id="workflowProgress" class="workflow-progress" style="display: none; margin-bottom: 24px;">
+            <div class="workflow-steps">
+              <div class="workflow-step" id="step1">
+                <div class="step-circle">1</div>
+                <div class="step-label">Nahrat dokument</div>
+              </div>
+              <div class="workflow-line" id="line1"></div>
+              <div class="workflow-step" id="step2">
+                <div class="step-circle">2</div>
+                <div class="step-label">Pridat prirucku</div>
+              </div>
+              <div class="workflow-line" id="line2"></div>
+              <div class="workflow-step" id="step3">
+                <div class="step-circle">3</div>
+                <div class="step-label">Generovat testy</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Manual/Handbook Section (NEW WORKFLOW) -->
+          <div class="section-spaced" id="manualSection" style="display: none;">
+            <div class="section-header">
+              <div>
+                <h3 style="margin: 0; display: flex; align-items: center; gap: 8px;">
+                  <span class="section-header-step">2</span>
+                  Prirucka / Specifikacia existujucej funkcionality
+                </h3>
+                <p class="muted" style="margin: 8px 0 0 36px;">Nahrajte prirucku popisujucu funkcionalitu systemu. AI sa ju najprv nauci a potom na zaklade zmenovych poziadaviek vygeneruje testy.</p>
+              </div>
+            </div>
+
+            <!-- Current Manual Display -->
+            <div id="currentManualDisplay" class="manual-display" style="display: none; margin-bottom: 16px;">
+              <div class="manual-display-header">
+                <h4 class="manual-display-title">
+                  <span>&#10003;</span> Prirucka nahrana
+                </h4>
+              </div>
+              <div id="manualContent" class="manual-display-content" style="max-height: 200px;"></div>
+              <div id="manualMeta" class="manual-display-meta"></div>
+            </div>
+
+            <!-- Upload Manual Form -->
+            <div id="uploadManualForm" style="margin-top: 1rem;">
+              <div class="manual-upload-form">
+                <h4 id="uploadFormTitle">Nahrat prirucku</h4>
+                <div class="form-group">
+                  <label>Typ vstupu</label>
+                  <div class="radio-group" style="margin-bottom: 1rem;">
+                    <label class="radio-option">
+                      <input type="radio" name="manualType" value="text" checked>
+                      <span>Text</span>
+                    </label>
+                    <label class="radio-option">
+                      <input type="radio" name="manualType" value="file">
+                      <span>Subor (docx/pdf/txt)</span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Text Input -->
+                <div id="textManualInput" class="manual-input-section">
+                  <div class="form-group">
+                    <label for="manualText">Text prirucky</label>
+                    <textarea id="manualText" rows="10" placeholder="Vlozte obsah prirucky, kde je popisana existujuca funkcionalita systemu...&#10;&#10;Napriklad:&#10;- Popis modulov a ich funkcii&#10;- Existujuce pravidla a validacie&#10;- Workflow a procesy&#10;- Biznis logika"></textarea>
+                  </div>
+                </div>
+
+                <!-- File Input -->
+                <div id="fileManualInput" class="manual-input-section" style="display: none;">
+                  <div class="form-group">
+                    <label for="manualFile">Nahrat subor prirucky</label>
+                    <input type="file" id="manualFile" accept=".docx,.pdf,.txt" style="padding: 12px; border: 2px dashed var(--border); border-radius: 6px; width: 100%; cursor: pointer;">
+                    <p class="muted" style="margin-top: 0.5rem; font-size: 0.85rem;">Podporovane formaty: docx, pdf, txt</p>
+                  </div>
+                </div>
+
+                <div class="manual-form-actions">
+                  <button type="button" class="primary" id="saveManualBtn">Ulozit prirucku</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pages Section -->
+          <div class="pages-section" id="pagesSection">
+            <h3>Detekovane celky</h3>
+            <div id="pagesList"></div>
+          </div>
+
+          <!-- Scenarios Section -->
+          <div class="scenarios-section" id="scenariosSection">
+            <h3>Vygenerovane testovacie scenare</h3>
+            <div class="filter-tabs">
+              <button type="button" class="filter-tab active" data-filter="all">
+                Vsetky <span class="count" id="filterAllCount">0</span>
+              </button>
+              <button type="button" class="filter-tab" data-filter="validated">
+                Validovane <span class="count" id="filterValidatedCount">0</span>
+              </button>
+              <button type="button" class="filter-tab" data-filter="needs_review">
+                Na kontrolu <span class="count" id="filterNeedsReviewCount">0</span>
+              </button>
+            </div>
+            <div id="scenariosList"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar">Menu</button>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal-overlay" id="deleteModal">
+      <div class="modal">
+        <h2>Zmazat dokument?</h2>
+        <p>Naozaj chcete zmazat tento dokument a vsetky jeho vygenerovane testy? Tuto akciu nie je mozne vratit.</p>
+        <div class="modal-actions">
+          <button type="button" class="ghost" id="cancelDeleteBtn">Zrusit</button>
+          <button type="button" class="danger" id="confirmDeleteBtn">Zmazat</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Context Modal -->
+    <div class="modal-overlay" id="contextModal">
+      <div class="modal">
+        <h2>Pridat kontext pre celok</h2>
+        <p id="contextModalPageName" class="muted" style="margin-bottom: 1rem;"></p>
+
+        <div class="form-group">
+          <label>Typ kontextu</label>
+          <div class="radio-group" style="margin-bottom: 1rem;">
+            <label class="radio-option">
+              <input type="radio" name="contextTypeModal" value="text" checked>
+              <span>Text</span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="contextTypeModal" value="file">
+              <span>Subor (docx/pdf/txt)</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Text Input -->
+        <div id="textContextInputModal" class="context-input-section">
+          <div class="form-group">
+            <label for="contextTextModal">Text kontextu</label>
+            <textarea id="contextTextModal" rows="6" placeholder="Vlozte dodatocne informacie, prirucky alebo poznamky..."></textarea>
+          </div>
+        </div>
+
+        <!-- File Input -->
+        <div id="fileContextInputModal" class="context-input-section" style="display: none;">
+          <div class="form-group">
+            <label for="contextFileModal">Nahrat subor</label>
+            <input type="file" id="contextFileModal" accept=".docx,.pdf,.txt">
+            <p class="muted" style="margin-top: 0.5rem; font-size: 0.85rem;">Podporovane formaty: docx, pdf, txt</p>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="ghost" id="cancelContextBtn">Zrusit</button>
+          <button type="button" class="primary" id="saveContextModalBtn">Ulozit kontext</button>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

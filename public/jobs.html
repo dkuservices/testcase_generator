@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Joby - Test Scenario Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/ui/generate.css">
+    <link rel="stylesheet" href="/ui/hierarchy.css">
+    <link rel="stylesheet" href="/ui/review.css">
+    <link rel="stylesheet" href="/ui/documents.css">
+    <script defer src="/ui/sidebar.js"></script>
+    <script defer src="/ui/jobs.js"></script>
+  </head>
+  <body>
+    <div class="app-layout">
+      <!-- Sidebar -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <h2>Test Generator</h2>
+          <p>Project hierarchy</p>
+        </div>
+        <nav class="sidebar-nav" id="sidebarTree"></nav>
+        <div class="sidebar-actions">
+          <a href="/generate" class="sidebar-link">
+            <span>+</span> Quick Generate
+          </a>
+          <a href="/review" class="sidebar-link">
+            <span>!</span> Review Desk
+          </a>
+          <a href="/jobs" class="sidebar-link active">
+            <span>&#9881;</span> Joby
+          </a>
+          <a href="/documents" class="sidebar-link">
+            <span>&#128196;</span> Dokumenty
+          </a>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <div class="breadcrumb">
+          <a href="/projects">Projects</a>
+          <span>/</span>
+          <span class="current">Joby</span>
+        </div>
+
+        <div class="page-header">
+          <h1>Prehľad jobov</h1>
+          <p>Zoznam všetkých generovaní a ich stav</p>
+        </div>
+
+        <div class="stats-row" id="statsRow">
+          <div class="stat-box">
+            <div class="stat-value" id="totalJobs">0</div>
+            <div class="stat-label">Celkom jobov</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value processing" id="processingJobs">0</div>
+            <div class="stat-label">Spracováva sa</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value validated" id="completedJobs">0</div>
+            <div class="stat-label">Dokončených</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value needs-review" id="failedJobs">0</div>
+            <div class="stat-label">Zlyhalo</div>
+          </div>
+        </div>
+
+        <div class="action-bar">
+          <div class="action-bar-left">
+            <span id="jobCount">0 jobov</span>
+          </div>
+          <div class="action-bar-right">
+            <button type="button" class="ghost" id="refreshBtn">Obnoviť</button>
+          </div>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="filter-controls" id="filterControls">
+          <label class="control">
+            <span>Status</span>
+            <select id="statusFilter">
+              <option value="all">Všetky</option>
+              <option value="processing">Spracováva sa</option>
+              <option value="completed">Dokončené</option>
+              <option value="failed">Zlyhané</option>
+            </select>
+          </label>
+          <label class="control grow">
+            <span>Hľadať</span>
+            <input id="searchInput" type="search" placeholder="Filtrovať podľa ID alebo názvu...">
+          </label>
+        </div>
+
+        <!-- Jobs List -->
+        <div id="jobsContainer">
+          <!-- Jobs will be populated here -->
+        </div>
+
+        <div class="empty-state" id="emptyState" style="display: none;">
+          <h3>Žiadne joby</h3>
+          <p>Zatiaľ neboli spustené žiadne generovania</p>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination" id="pagination" style="display: none;">
+          <button type="button" class="ghost" id="prevPageBtn" disabled>Predchádzajúca</button>
+          <span id="pageInfo">Strana 1</span>
+          <button type="button" class="ghost" id="nextPageBtn">Nasledujúca</button>
+        </div>
+      </main>
+    </div>
+
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar">Menu</button>
+
+    <!-- Job Detail Modal -->
+    <div class="modal-overlay" id="jobDetailModal">
+      <div class="modal modal-lg">
+        <h2>Detail jobu</h2>
+        <div id="jobDetailContent">
+          <!-- Job details will be populated here -->
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="ghost" id="closeJobDetailBtn">Zavrieť</button>
+          <button type="button" class="danger" id="deleteJobBtn" style="display: none;">Zmazať job</button>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

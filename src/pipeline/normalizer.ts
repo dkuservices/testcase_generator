@@ -40,6 +40,17 @@ export async function normalizeInput(input: SpecificationInput): Promise<Normali
     textParts.push(`Acceptance Criteria: ${normalizedAcceptanceCriteria}`);
   }
 
+  // Add supplementary context if provided
+  if (input.supplementary_context?.additional_text) {
+    const cleanedSupplementary = cleanText(input.supplementary_context.additional_text);
+    if (cleanedSupplementary) {
+      textParts.push(`Additional Context: ${cleanedSupplementary}`);
+      contextLogger.debug('Added supplementary context to normalization', {
+        supplementary_length: cleanedSupplementary.length,
+      });
+    }
+  }
+
   let normalizedText = textParts.join('\n\n');
 
   normalizedText = removeDuplicateSentences(normalizedText);
@@ -55,6 +66,7 @@ export async function normalizeInput(input: SpecificationInput): Promise<Normali
     normalized_text: normalizedText,
     metadata: metadata,
     original_input: input,
+    scenario_override: input.scenario_override,
   };
 
   contextLogger.debug('Input normalization completed', {

@@ -39,6 +39,33 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   }
 });
 
+router.get('/:jobId', async (req: Request, res: Response, next: NextFunction) => {
+  const { jobId } = req.params;
+
+  try {
+    const job = await getJob(jobId);
+
+    if (!job) {
+      throw new ApiError(`Job not found: ${jobId}`, 404);
+    }
+
+    res.json({
+      job_id: job.job_id,
+      status: job.status,
+      created_at: job.created_at,
+      completed_at: job.completed_at,
+      results: job.results,
+      error: job.error,
+      component_id: job.component_id,
+      project_id: job.project_id,
+      page_id: job.page_id,
+      input: job.input,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.delete('/:jobId', async (req: Request, res: Response, next: NextFunction) => {
   const { jobId } = req.params;
 

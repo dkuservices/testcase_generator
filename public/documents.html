@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dokumenty - Test Scenario Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/ui/generate.css">
+    <link rel="stylesheet" href="/ui/hierarchy.css">
+    <link rel="stylesheet" href="/ui/review.css">
+    <link rel="stylesheet" href="/ui/documents.css">
+    <script defer src="/ui/sidebar.js"></script>
+    <script defer src="/ui/documents.js"></script>
+  </head>
+  <body>
+    <div class="app-layout">
+      <!-- Sidebar -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <h2>Test Generator</h2>
+          <p>Project hierarchy</p>
+        </div>
+        <nav class="sidebar-nav" id="sidebarTree"></nav>
+        <div class="sidebar-actions">
+          <a href="/generate" class="sidebar-link">
+            <span>+</span> Quick Generate
+          </a>
+          <a href="/review" class="sidebar-link">
+            <span>!</span> Review Desk
+          </a>
+          <a href="/jobs" class="sidebar-link">
+            <span>&#9881;</span> Joby
+          </a>
+          <a href="/documents" class="sidebar-link active">
+            <span>&#128196;</span> Dokumenty
+          </a>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <div class="breadcrumb">
+          <a href="/projects">Projects</a>
+          <span>/</span>
+          <span class="current">Dokumenty</span>
+        </div>
+
+        <div class="page-header">
+          <h1>Novy projekt zo zmenovych poziadaviek</h1>
+          <p>Nahrajte Word dokumenty, pomenujte projekt a automaticky vygenerujte testy</p>
+        </div>
+
+        <!-- Wizard Steps Indicator -->
+        <div class="wizard-steps">
+          <div class="wizard-step active" data-step="1">
+            <span class="wizard-step-number">1</span>
+            <span>Nahrat subory</span>
+          </div>
+          <div class="wizard-step-connector"></div>
+          <div class="wizard-step" data-step="2">
+            <span class="wizard-step-number">2</span>
+            <span>Nastavit projekt</span>
+          </div>
+          <div class="wizard-step-connector"></div>
+          <div class="wizard-step" data-step="3">
+            <span class="wizard-step-number">3</span>
+            <span>Pridat prirucku</span>
+          </div>
+          <div class="wizard-step-connector"></div>
+          <div class="wizard-step" data-step="4">
+            <span class="wizard-step-number">4</span>
+            <span>Generovanie</span>
+          </div>
+        </div>
+
+        <div class="wizard-content">
+          <!-- Step 1: Upload Files -->
+          <div class="wizard-panel active" id="step1Panel">
+            <div class="upload-zone" id="uploadZone">
+              <input type="file" id="fileInput" accept=".docx,.doc" multiple>
+              <div class="upload-icon">&#128196;</div>
+              <h3>Nahrajte Word dokumenty</h3>
+              <p>Pretiahnite subory sem alebo kliknite pre vyber</p>
+              <p class="upload-hint">.docx alebo .doc subory (max 20)</p>
+            </div>
+
+            <div class="selected-files" id="selectedFilesSection" style="display: none;">
+              <h4>
+                <span>Vybrane subory (<span id="fileCount">0</span>)</span>
+                <button type="button" class="ghost small" id="clearFilesBtn">Vymazat vsetky</button>
+              </h4>
+              <div class="file-list" id="fileList"></div>
+            </div>
+
+            <div class="wizard-actions">
+              <div class="left"></div>
+              <div class="right">
+                <button type="button" class="primary" id="toStep2Btn" disabled>Pokracovat</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: Configure Project -->
+          <div class="wizard-panel" id="step2Panel">
+            <div class="project-form">
+              <label for="projectName">Nazov projektu *</label>
+              <input type="text" id="projectName" placeholder="napr. Zmenovka NBS Q1 2026" required>
+              <p class="hint">Tento nazov sa zobrazi v hierarchii projektov v sidebari</p>
+            </div>
+
+            <div class="selected-files">
+              <h4>Dokumenty na spracovanie (<span id="step2FileCount">0</span>)</h4>
+              <div class="file-list" id="step2FileList"></div>
+            </div>
+
+            <div class="wizard-actions">
+              <div class="left">
+                <button type="button" class="ghost" id="backToStep1Btn">Spat</button>
+              </div>
+              <div class="right">
+                <button type="button" class="primary" id="startProcessingBtn">Spustit spracovanie</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3: Manual/Handbook Upload -->
+          <div class="wizard-panel" id="step3Panel">
+            <div class="manual-upload-section">
+              <h3>Prirucka / Specifikacia existujucej funkcionality</h3>
+              <p class="hint">Nahrajte prirucku popisujucu funkcionalitu systemu. AI sa ju najprv nauci a potom na zaklade zmenovych poziadaviek vygeneruje testy.</p>
+
+              <!-- Current Manual Display -->
+              <div id="currentManualDisplayWizard" class="manual-display" style="display: none; margin: 20px 0;">
+                <div class="manual-display-header">
+                  <h4 class="manual-display-title">
+                    <span>&#10003;</span> Prirucka nahrana
+                  </h4>
+                  <button type="button" class="ghost small" id="clearManualBtn">Odstranit</button>
+                </div>
+                <div id="manualContentWizard" class="manual-display-content"></div>
+                <div id="manualMetaWizard" class="manual-display-meta"></div>
+              </div>
+
+              <!-- Upload Manual Form -->
+              <div id="uploadManualFormWizard" class="project-form" style="margin-top: 20px;">
+                <div class="form-group" style="margin-bottom: 16px;">
+                  <label>Typ vstupu</label>
+                  <div class="radio-group">
+                    <label class="radio-option">
+                      <input type="radio" name="manualTypeWizard" value="text" checked>
+                      <span>Text</span>
+                    </label>
+                    <label class="radio-option">
+                      <input type="radio" name="manualTypeWizard" value="file">
+                      <span>Subor (docx/pdf/txt)</span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Text Input -->
+                <div id="textManualInputWizard">
+                  <label for="manualTextWizard">Text prirucky</label>
+                  <textarea id="manualTextWizard" rows="8" placeholder="Vlozte obsah prirucky, kde je popisana existujuca funkcionalita systemu...
+
+Napriklad:
+- Popis modulov a ich funkcii
+- Existujuce pravidla a validacie
+- Workflow a procesy
+- Biznis logika"></textarea>
+                </div>
+
+                <!-- File Input -->
+                <div id="fileManualInputWizard" style="display: none;">
+                  <label for="manualFileWizard">Nahrat subor prirucky</label>
+                  <div class="file-upload-area" id="manualFileUploadZone">
+                    <input type="file" id="manualFileWizard" accept=".docx,.pdf,.txt">
+                    <p>Kliknite pre vyber suboru alebo pretiahnite sem</p>
+                    <p class="muted" style="margin-top: 8px; font-size: 0.75rem;">Podporovane formaty: docx, pdf, txt</p>
+                  </div>
+                  <div id="uploadedManualFileList" class="uploaded-files-list"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="wizard-actions">
+              <div class="left">
+                <button type="button" class="ghost" id="backToStep2Btn">Spat</button>
+                <button type="button" class="ghost" id="skipManualBtn">Preskocit (bez prirucky)</button>
+              </div>
+              <div class="right">
+                <button type="button" class="primary" id="continueToGenerationBtn">Pokracovat na generovanie</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 4: Processing/Generation -->
+          <div class="wizard-panel" id="step4Panel">
+            <div class="processing-status">
+              <h3 id="processingTitle">Spracovavam dokumenty...</h3>
+              <div class="progress-bar">
+                <div class="progress-bar-fill" id="processingProgress"></div>
+              </div>
+              <p id="processingStatus">Pripravujem...</p>
+              <div class="processing-log" id="processingLog"></div>
+            </div>
+
+            <div class="wizard-actions" id="step3Actions" style="display: none;">
+              <div class="left"></div>
+              <div class="right">
+                <button type="button" class="primary" id="goToProjectBtn">Otvorit projekt</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Existing Documents/Projects -->
+        <div class="existing-section" id="existingSection">
+          <h2>Existujuce projekty z dokumentov</h2>
+          <div class="action-bar">
+            <div class="action-bar-left">
+              <span id="documentCount">0 projektov</span>
+            </div>
+            <div class="action-bar-right">
+              <button type="button" class="ghost" id="refreshBtn">Obnovit</button>
+            </div>
+          </div>
+          <div id="documentsContainer"></div>
+          <div class="empty-state" id="emptyState" style="display: none;">
+            <p>Ziadne projekty z dokumentov</p>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar">Menu</button>
+  </body>
+</html>

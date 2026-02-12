@@ -11,6 +11,34 @@ export async function saveJob(job: Job): Promise<void> {
   logger.debug('Job saved', { job_id: job.job_id, status: job.status });
 }
 
+export async function createJob(job: Partial<Job> & { job_id: string }): Promise<Job> {
+  const fullJob: Job = {
+    job_id: job.job_id,
+    status: job.status || 'processing',
+    created_at: job.created_at || new Date().toISOString(),
+    input: job.input || {
+      title: '',
+      description: '',
+      acceptance_criteria: '',
+      metadata: {
+        system_type: 'web',
+        feature_priority: 'medium',
+        parent_jira_issue_id: '',
+      },
+    },
+    completed_at: job.completed_at,
+    results: job.results,
+    error: job.error,
+    component_id: job.component_id,
+    project_id: job.project_id,
+    page_id: job.page_id,
+    document_id: job.document_id,
+  };
+
+  await saveJob(fullJob);
+  return fullJob;
+}
+
 export async function getJob(jobId: string): Promise<Job | null> {
   const filePath = path.join(JOBS_DIR, `${jobId}.json`);
 

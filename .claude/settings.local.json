@@ -6,7 +6,19 @@
       "Bash(set CLAUDE_MODEL=sonnet)",
       "Bash(npm run dev:*)",
       "Bash(curl:*)",
-      "Bash(timeout 60 tail:*)"
+      "Bash(timeout 60 tail:*)",
+      "Bash(npm run lint)",
+      "Bash(npm install)",
+      "Bash(git checkout:*)",
+      "Bash(npm install:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(python -c:*)",
+      "Bash(node -e:*)",
+      "Bash(if not exist \"c:\\\\Users\\\\RTX\\\\Desktop\\\\testcase_generator\\\\data\\\\temp_uploads\" mkdir \"c:\\\\Users\\\\RTX\\\\Desktop\\\\testcase_generator\\\\data\\\\temp_uploads\")",
+      "Bash(dir:*)",
+      "Bash(if not exist \"c:\\\\Users\\\\RTX\\\\Desktop\\\\testcase_generator\\\\src\\\\export\" mkdir \"c:\\\\Users\\\\RTX\\\\Desktop\\\\testcase_generator\\\\src\\\\export\")",
+      "Bash(npx tsc:*)"
     ]
   }
 }

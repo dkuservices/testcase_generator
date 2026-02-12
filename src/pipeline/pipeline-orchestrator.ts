@@ -2,6 +2,7 @@ import { SpecificationInput } from '../models/specification-input';
 import { JobResults } from '../models/job';
 import { JiraConfig } from '../models/config';
 import { normalizeInput } from './normalizer';
+import { planScenarios } from './scenario-planner';
 import { buildPrompt } from './prompt-builder';
 import { invokeLLMWithFallback } from './llm-client-v2';
 import { validateScenarios } from './validator';
@@ -33,15 +34,28 @@ export async function executePipeline(
     contextLogger.info('Pipeline Step 1 completed', { duration_ms: step1Duration });
 
     const step2Start = Date.now();
-    contextLogger.info('Pipeline Step 2: LLM prompt preparation');
-    const promptMessages = buildPrompt(normalizedInput);
+    contextLogger.info('Pipeline Step 2: Scenario planning');
+    const scenarioPlan = await planScenarios(normalizedInput, jobId);
     const step2Duration = Date.now() - step2Start;
-    contextLogger.info('Pipeline Step 2 completed', { duration_ms: step2Duration });    const step3Start = Date.now();
-    contextLogger.info('Pipeline Step 3: LLM invocation with fallback');
-    const llmResult = await invokeLLMWithFallback(promptMessages, normalizedInput, jobId);
+    contextLogger.info('Pipeline Step 2 completed', {
+      duration_ms: step2Duration,
+      recommended_count: scenarioPlan.recommended_count,
+      scenario_types: scenarioPlan.scenario_types.map(st => st.classification),
+      test_repository_folder: scenarioPlan.test_repository_folder,
+    });
+
+    const step3Start = Date.now();
+    contextLogger.info('Pipeline Step 3: LLM prompt preparation');
+    const promptMessages = buildPrompt(normalizedInput, scenarioPlan);
     const step3Duration = Date.now() - step3Start;
-    contextLogger.info('Pipeline Step 3 completed', {
-      duration_ms: step3Duration,
+    contextLogger.info('Pipeline Step 3 completed', { duration_ms: step3Duration });
+
+    const step4Start = Date.now();
+    contextLogger.info('Pipeline Step 4: LLM invocation with fallback');
+    const llmResult = await invokeLLMWithFallback(promptMessages, normalizedInput, jobId);
+    const step4Duration = Date.now() - step4Start;
+    contextLogger.info('Pipeline Step 4 completed', {
+      duration_ms: step4Duration,
       scenario_count: llmResult.finalScenarios.length,
       primary_attempt_success: llmResult.primaryAttempt.success,
       fallback_attempted: !!llmResult.fallbackAttempt,
@@ -58,9 +72,9 @@ export async function executePipeline(
       };
     }
 
-    const step4Start = Date.now();
-    contextLogger.info('Pipeline Step 4: Output validation with fallback logic');
-    
+    const step5Start = Date.now();
+    contextLogger.info('Pipeline Step 5: Output validation with fallback logic');
+
     // First validate primary attempt scenarios
     let primaryValidatedScenarios: GeneratedTestScenario[] = [];
     if (llmResult.primaryAttempt.scenarios.length > 0) {
@@ -78,7 +92,7 @@ export async function executePipeline(
     if (fallbackEnabled && llmResult.fallbackAttempt && llmResult.fallbackAttempt.scenarios.length > 0) {
       // Always validate fallback scenarios if they exist
       fallbackValidatedScenarios = await validateScenarios(llmResult.fallbackAttempt.scenarios, normalizedInput, jobId);
-      
+
       const fallbackNeedsReview = fallbackValidatedScenarios.filter(s => s.validation_status === 'needs_review').length;
       const fallbackValidated = fallbackValidatedScenarios.filter(s => s.validation_status === 'validated').length;
 
@@ -103,13 +117,15 @@ export async function executePipeline(
 
     // Choose the better set of scenarios
     const finalValidatedScenarios = shouldUseFallback ? fallbackValidatedScenarios : primaryValidatedScenarios;
-    
-    const step4Duration = Date.now() - step4Start;
-    contextLogger.info('Pipeline Step 4 completed', { 
-      duration_ms: step4Duration,
+
+    const step5Duration = Date.now() - step5Start;
+    contextLogger.info('Pipeline Step 5 completed', {
+      duration_ms: step5Duration,
       used_fallback: shouldUseFallback,
       final_scenario_count: finalValidatedScenarios.length
-    });    const validatedCount = finalValidatedScenarios.filter(s => s.validation_status === 'validated').length;
+    });
+
+    const validatedCount = finalValidatedScenarios.filter(s => s.validation_status === 'validated').length;
     const needsReviewCount = finalValidatedScenarios.filter(s => s.validation_status === 'needs_review').length;
 
     const validatedOnly = finalValidatedScenarios.filter(s => s.validation_status === 'validated');
@@ -131,11 +147,11 @@ export async function executePipeline(
       confluence_page_id: confluencePageId,
     });
 
-    const step5Start = Date.now();
-    contextLogger.info('Pipeline Step 5: Jira preparation');
+    const step6Start = Date.now();
+    contextLogger.info('Pipeline Step 6: Jira/TestFlo preparation');
     await formatForJira(finalValidatedScenarios, jiraConfig, confluencePageId, jobId);
-    const step5Duration = Date.now() - step5Start;
-    contextLogger.info('Pipeline Step 5 completed', { duration_ms: step5Duration });
+    const step6Duration = Date.now() - step6Start;
+    contextLogger.info('Pipeline Step 6 completed', { duration_ms: step6Duration });
 
     const pipelineDuration = Date.now() - pipelineStartTime;    contextLogger.info('Pipeline execution completed successfully', {
       total_duration_ms: pipelineDuration,

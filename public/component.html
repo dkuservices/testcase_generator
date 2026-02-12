@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Component - Test Scenario Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/ui/generate.css">
+    <link rel="stylesheet" href="/ui/hierarchy.css">
+    <link rel="stylesheet" href="/ui/review.css">
+    <link rel="stylesheet" href="/ui/documents.css">
+    <script defer src="/ui/sidebar.js"></script>
+    <script defer src="/ui/export-helper.js"></script>
+    <script defer src="/ui/component.js"></script>
+  </head>
+  <body>
+    <div class="app-layout">
+      <!-- Sidebar -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <h2>Test Generator</h2>
+          <p>Project hierarchy</p>
+        </div>
+        <nav class="sidebar-nav" id="sidebarTree"></nav>
+        <div class="sidebar-actions">
+          <a href="/generate" class="sidebar-link">
+            <span>+</span> Quick Generate
+          </a>
+          <a href="/review" class="sidebar-link">
+            <span>!</span> Review Desk
+          </a>
+          <a href="/jobs" class="sidebar-link">
+            <span>&#9881;</span> Joby
+          </a>
+          <a href="/documents" class="sidebar-link">
+            <span>&#128196;</span> Dokumenty
+          </a>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <div class="breadcrumb">
+          <a href="/projects">Projects</a>
+          <span>/</span>
+          <a href="#" id="breadcrumbProject">Project</a>
+          <span>/</span>
+          <span class="current" id="breadcrumbName">Loading...</span>
+        </div>
+
+        <div class="page-header">
+          <h1 id="componentName">Loading...</h1>
+          <p id="componentDescription"></p>
+        </div>
+
+        <div class="action-bar">
+          <div class="action-bar-left">
+            <!-- Tabs will go here -->
+          </div>
+          <div class="action-bar-right">
+            <button type="button" class="ghost" id="editComponentBtn">Edit</button>
+            <button type="button" class="ghost danger" id="deleteComponentBtn">Delete</button>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+          <button type="button" class="tab-btn active" data-tab="pages">Pages</button>
+          <button type="button" class="tab-btn" data-tab="integration">Integration Tests</button>
+          <button type="button" class="tab-btn" data-tab="dependencies">Dependencies</button>
+        </div>
+
+        <!-- Pages Tab -->
+        <div class="tab-content active" id="pagesTab">
+          <div class="action-bar">
+            <div class="action-bar-left">
+              <span id="pageCount">0 pages</span>
+            </div>
+            <div class="action-bar-right">
+              <button type="button" class="primary" id="addPageBtn">Add Page</button>
+            </div>
+          </div>
+
+          <div class="cards-grid" id="pagesGrid">
+            <!-- Pages will be populated here -->
+          </div>
+
+          <div class="empty-state" id="pagesEmptyState" style="display: none;">
+            <h3>No pages yet</h3>
+            <p>Add Confluence page links to generate test scenarios</p>
+            <button type="button" class="primary" id="addPageEmptyBtn">Add Page</button>
+          </div>
+        </div>
+
+        <!-- Integration Tests Tab -->
+        <div class="tab-content" id="integrationTab">
+          <div class="action-bar">
+            <div class="action-bar-left">
+              <span id="integrationTestCount">0 integration tests</span>
+            </div>
+            <div class="action-bar-right">
+              <label class="field-inline" for="maxIntegrationTestsInput">
+                <span>Max tests</span>
+                <input type="number" id="maxIntegrationTestsInput" min="1" max="20" value="6">
+              </label>
+              <button type="button" class="ghost" id="exportBtn">Export</button>
+              <button type="button" class="ghost" id="generateAllBtn">Generuj všetko</button>
+              <button type="button" class="warn" id="clearAllIntegrationBtn">Clear All Tests</button>
+              <button type="button" class="primary" id="generateIntegrationBtn">Generate Integration Tests</button>
+            </div>
+          </div>
+
+          <div class="stats-row" id="integrationStatsRow">
+            <div class="stat-box">
+              <div class="stat-value" id="totalIntegrationScenarios">0</div>
+              <div class="stat-label">Total Scenarios</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-value" id="validatedIntegrationScenarios">0</div>
+              <div class="stat-label">Validated</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-value" id="needsReviewIntegrationScenarios">0</div>
+              <div class="stat-label">Needs Review</div>
+            </div>
+          </div>
+
+          <!-- Filter Controls for Integration Tests -->
+          <div class="filter-controls" id="integrationFilterControls" style="display: none;">
+            <label class="control">
+              <span>Status</span>
+              <select id="integrationStatusFilter">
+                <option value="all">All scenarios</option>
+                <option value="validated">Validated only</option>
+                <option value="needs_review">Needs review only</option>
+              </select>
+            </label>
+            <label class="control">
+              <span>Classification</span>
+              <select id="integrationClassificationFilter">
+                <option value="all">All types</option>
+                <option value="happy_path">Happy path</option>
+                <option value="negative">Negative</option>
+                <option value="edge_case">Edge case</option>
+              </select>
+            </label>
+            <label class="control grow">
+              <span>Search</span>
+              <input id="integrationSearchInput" type="search" placeholder="Filter by test name or description...">
+            </label>
+          </div>
+
+          <!-- Generation Status -->
+          <div class="status" id="integrationGenerationStatus" style="display: none;">
+            <div class="status-line" id="integrationGenerationStatusMessage">Generating tests...</div>
+            <div class="status-meta" id="integrationGenerationStatusMeta"></div>
+          </div>
+
+          <div id="integrationTestsContainer">
+            <!-- Integration tests will be populated here -->
+          </div>
+
+          <div class="empty-state" id="integrationEmptyState" style="display: none;">
+            <h3>No integration tests yet</h3>
+            <p>Generate integration tests to create component-level test scenarios that span multiple pages</p>
+            <button type="button" class="primary" id="generateIntegrationEmptyBtn">Generate Integration Tests</button>
+          </div>
+
+          <!-- Job History -->
+          <div id="integrationJobHistorySection" class="section-spaced">
+            <h3>Generation History</h3>
+            <div id="integrationJobHistoryContainer"></div>
+          </div>
+
+          <section class="chat-panel" id="chatPanel">
+            <header class="chat-header">
+              <div>
+                <h3>AI Refactor Chat</h3>
+                <p class="muted" id="chatContext">Using 0 scenarios</p>
+              </div>
+              <button type="button" class="ghost" id="chatClearBtn">Clear</button>
+            </header>
+            <div class="chat-log" id="chatLog">
+              <div class="chat-empty" id="chatEmpty">Ask about the integration tests to get refactor ideas.</div>
+            </div>
+            <form class="chat-form" id="chatForm">
+              <label class="field">
+                <span>Your message</span>
+                <textarea id="chatInput" rows="3" placeholder="Ask for improvements, missing workflows, or refactors..."></textarea>
+              </label>
+              <div class="chat-actions">
+                <button type="submit" class="primary" id="chatSendBtn">Send</button>
+              </div>
+            </form>
+          </section>
+        </div>
+
+        <!-- Dependencies Tab -->
+        <div class="tab-content" id="dependenciesTab">
+          <div class="dependencies-section">
+            <h3>Závislosti na iné moduly</h3>
+            <p class="muted">Automaticky odvodené zo závislostí stránok v tomto module</p>
+            <div class="dependencies-list" id="componentDependenciesList">
+              <p class="muted">Žiadne závislosti neboli detekované</p>
+            </div>
+          </div>
+
+          <div class="dependencies-section" style="margin-top: 20px;">
+            <h3>Závislosti stránok v tomto module</h3>
+            <p class="muted">Priame závislosti jednotlivých stránok</p>
+            <div id="pageDependenciesList">
+              <p class="muted">Žiadne závislosti stránok</p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar">Menu</button>
+
+    <!-- Add Page Modal -->
+    <div class="modal-overlay" id="addPageModal">
+      <div class="modal">
+        <h2>Add Page</h2>
+        <form id="addPageForm">
+          <div class="form-group">
+            <label for="confluenceLink">Confluence Page Link</label>
+            <input type="url" id="confluenceLink" name="confluence_link" required placeholder="https://domain.atlassian.net/wiki/spaces/SPACE/pages/123456/Page">
+          </div>
+          <div class="form-group">
+            <label for="pageName">Page Name (optional)</label>
+            <input type="text" id="pageName" name="name" placeholder="Leave blank to use Confluence page title">
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="ghost" id="cancelAddPageBtn">Cancel</button>
+            <button type="submit" class="primary">Add Page</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Edit Component Modal -->
+    <div class="modal-overlay" id="editModal">
+      <div class="modal">
+        <h2>Edit Component</h2>
+        <form id="editComponentForm">
+          <div class="form-group">
+            <label for="editComponentName">Component Name</label>
+            <input type="text" id="editComponentName" name="name" required>
+          </div>
+          <div class="form-group">
+            <label for="editComponentDescription">Description (optional)</label>
+            <textarea id="editComponentDescription" name="description"></textarea>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="ghost" id="cancelEditBtn">Cancel</button>
+            <button type="submit" class="primary">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div class="modal-overlay" id="exportModal">
+      <div class="modal">
+        <h2>Export scenarov</h2>
+        <button class="icon modal-close" id="closeExportModal" aria-label="Close">X</button>
+        <form id="exportForm">
+          <div class="export-section">
+            <h4>Zahrnut statusy</h4>
+            <div class="checkbox-group">
+              <label class="checkbox-field">
+                <input type="checkbox" name="exportStatus" value="validated" checked>
+                <span>Validated</span>
+              </label>
+              <label class="checkbox-field">
+                <input type="checkbox" name="exportStatus" value="needs_review" checked>
+                <span>Needs Review</span>
+              </label>
+              <label class="checkbox-field">
+                <input type="checkbox" name="exportStatus" value="dismissed">
+                <span>Dismissed</span>
+              </label>
+            </div>
+          </div>
+          <div class="export-section">
+            <h4>Format</h4>
+            <div class="export-format-options">
+              <button type="button" class="ghost export-format-btn active" data-format="excel">Excel (.xlsx)</button>
+              <button type="button" class="ghost export-format-btn" data-format="pdf">PDF</button>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="ghost" id="cancelExport">Zrusit</button>
+            <button type="submit" class="primary" id="downloadExport">Stiahnut</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Edit Scenario Modal -->
+    <div class="modal-overlay" id="editScenarioModal">
+      <div class="modal modal-lg">
+        <h2>Edit Integration Test</h2>
+        <form id="editScenarioForm">
+          <input type="hidden" id="editScenarioTestId">
+          <div class="form-row">
+            <div class="form-group flex-2">
+              <label for="editScenarioName">Test Name</label>
+              <input type="text" id="editScenarioName" name="test_name" required>
+            </div>
+            <div class="form-group">
+              <label for="editScenarioPriority">Priority</label>
+              <select id="editScenarioPriority" name="priority">
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="editScenarioType">Test Type</label>
+              <select id="editScenarioType" name="test_type">
+                <option value="functional">Functional</option>
+                <option value="regression">Regression</option>
+                <option value="smoke">Smoke</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="editScenarioClassification">Classification</label>
+              <select id="editScenarioClassification" name="scenario_classification">
+                <option value="happy_path">Happy Path</option>
+                <option value="negative">Negative</option>
+                <option value="edge_case">Edge Case</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="editScenarioAutomation">Automation Status</label>
+              <select id="editScenarioAutomation" name="automation_status">
+                <option value="ready_for_automation">Ready for automation</option>
+                <option value="automation_not_needed">Automation not needed</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="editScenarioDescription">Description</label>
+            <textarea id="editScenarioDescription" name="description" rows="2" placeholder="Ciel: ..."></textarea>
+          </div>
+          <div class="form-group">
+            <label for="editScenarioPreconditions">Preconditions (one per line)</label>
+            <textarea id="editScenarioPreconditions" name="preconditions" rows="3"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Kroky testu (Test Steps)</label>
+            <div id="editScenarioStepsContainer" class="steps-editor">
+              <!-- Steps will be dynamically added here -->
+            </div>
+            <button type="button" class="ghost small" id="addStepBtn">+ Pridať krok</button>
+          </div>
+          <div class="form-row">
+            <div class="form-group flex-2">
+              <label for="editScenarioFolder">Test Repository Folder</label>
+              <input type="text" id="editScenarioFolder" name="test_repository_folder" placeholder="e.g., KIS2/Login">
+            </div>
+            <div class="form-group">
+              <label for="editScenarioNotes">Validation Notes</label>
+              <input type="text" id="editScenarioNotes" name="validation_notes" placeholder="Optional notes">
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="ghost" id="cancelScenarioEditBtn">Cancel</button>
+            <button type="submit" class="primary">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </body>
+</html>
+

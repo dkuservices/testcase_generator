@@ -9,6 +9,12 @@ export interface Job {
   completed_at?: string;
   results?: JobResults;
   error?: string;
+  batch_job_id?: string; // Link to parent batch if part of batch processing
+  // Hierarchy references for project structure
+  project_id?: string;
+  component_id?: string;
+  page_id?: string;
+  document_id?: string; // Link to Word document if generated from document
 }
 
 export interface JobResults {

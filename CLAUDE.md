@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-AI Orchestrator Module 4.1 - An AI-powered test scenario generator that transforms Confluence specifications into structured test cases using LLM providers (OpenAI/Ollama). The system validates scenarios, prepares them for Jira, and supports three execution modes with built-in multi-level fallback mechanisms.
+AI Orchestrator Module 4.1 - An AI-powered test scenario generator that transforms Confluence specifications into structured test cases using LLM providers (Claude/Ollama). The system validates scenarios, prepares them for Jira, and supports three execution modes with built-in multi-level fallback mechanisms.
 
 ## Commands
 
@@ -57,7 +57,7 @@ Creates strict prompts for LLM:
 **File**: [src/pipeline/llm-client-v2.ts](src/pipeline/llm-client-v2.ts)
 
 **Primary Attempt**:
-- Uses provider from `LLM_PROVIDER` env var (openai|ollama)
+- Uses provider from `LLM_PROVIDER` env var (claude|ollama)
 - Extracts scenarios from JSON response (handles multiple key names: scenarios, test_scenarios, testScenarios, items, data)
 - Normalizes field names (test_steps|steps|testSteps, scenario_classification|classification, etc.)
 - Enriches with test_id (UUID), tags, traceability metadata
@@ -171,22 +171,25 @@ REST API server on configured port (default: 3000)
 ### Provider Factory
 **File**: [src/llm/provider-factory.ts](src/llm/provider-factory.ts)
 
-- `createLlmProvider()` - reads `LLM_PROVIDER` env var (openai|ollama)
+- `createLlmProvider()` - reads `LLM_PROVIDER` env var (claude|ollama)
 - `createFallbackProvider()` - reads `LLM_FALLBACK_PROVIDER` env var
 - Each provider implements `LlmProvider` interface with `generateCompletion()` method
 
-### OpenAI Provider
-**File**: [src/llm/providers/openai-provider.ts](src/llm/providers/openai-provider.ts)
+### Claude Provider
+**File**: [src/llm/providers/claude-provider.ts](src/llm/providers/claude-provider.ts)
 
-- Uses openai SDK v4.24.1
+- Uses Claude CLI subprocess for completions
 - Configuration:
-  - `OPENAI_API_KEY` (required)
-  - `OPENAI_MODEL` (default: gpt-4-turbo)
-  - `OPENAI_TEMPERATURE` (default: 0.2)
-  - `OPENAI_MAX_TOKENS` (default: 3000)
-- Retry logic: 3 attempts with exponential backoff (1s→2s→4s)
-- JSON mode enabled for structured responses
-- Detects rate limits and retryable errors
+  - `CLAUDE_CLI_PATH` (default: claude)
+  - `CLAUDE_MODEL` (default: sonnet)
+  - `CLAUDE_TEMPERATURE` (default: 0.2)
+  - `CLAUDE_MAX_TOKENS` (default: 4096)
+  - `CLAUDE_TIMEOUT_MS` (default: 600000)
+  - `CLAUDE_MODEL_FALLBACK` (default: haiku)
+  - `CLAUDE_TEMPERATURE_FALLBACK` (default: 0.0)
+- Supports token usage tracking (including cache tokens)
+- JSON repair logic and markdown code block extraction
+- Has both primary and fallback profiles
 
 ### Ollama Provider
 **File**: [src/llm/providers/ollama-provider.ts](src/llm/providers/ollama-provider.ts)
@@ -247,17 +250,18 @@ Both levels controlled by `VALIDATION_FALLBACK_ENABLED` environment variable.
 - **execution-modes.json**: Enable/disable modes, cron expression, webhook secret, API port, CORS settings
 - **confluence.json**: monitored_spaces[], polling_interval_minutes, page_filters (include_labels, exclude_labels)
 - **jira.json**: project_key, issue_type, custom_field_mappings (preconditions, test_steps, expected_result, parent_issue_link)
-- **pricing.json**: OpenAI model pricing for cost tracking
+- **pricing.json**: LLM model pricing for cost tracking
 
 ### Environment Variables (Critical)
 
 **LLM Configuration**:
-- `LLM_PROVIDER` - "openai" or "ollama" (default: ollama)
-- `LLM_FALLBACK_PROVIDER` - Fallback provider name (e.g., "ollama" if primary is "openai")
+- `LLM_PROVIDER` - "claude" or "ollama" (default: ollama)
+- `LLM_FALLBACK_PROVIDER` - Fallback provider name (e.g., "ollama" if primary is "claude")
 - `VALIDATION_FALLBACK_ENABLED` - "true"|"false" - enables dual fallback system
 
-**OpenAI**:
-- `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_TEMPERATURE`, `OPENAI_MAX_TOKENS`
+**Claude**:
+- `CLAUDE_CLI_PATH`, `CLAUDE_MODEL`, `CLAUDE_TEMPERATURE`, `CLAUDE_MAX_TOKENS`
+- `CLAUDE_TIMEOUT_MS`, `CLAUDE_MODEL_FALLBACK`, `CLAUDE_TEMPERATURE_FALLBACK`
 
 **Ollama**:
 - `OLLAMA_BASE_URL`, `OLLAMA_MODEL_PRIMARY`, `OLLAMA_TEMPERATURE_PRIMARY`
@@ -288,7 +292,7 @@ data/
 ### Logs (logs/)
 - **app.log**: Main application log (rotated daily, 30-day retention)
 - **error.log**: Error-only log (90-day retention)
-- **cost-reports/**: Daily OpenAI API usage reports with cost estimation
+- **cost-reports/**: Daily LLM API usage reports with cost estimation
 - **metrics/**: Daily performance metrics
 
 ## Common Development Workflows
@@ -362,7 +366,7 @@ curl http://localhost:3000/api/jobs/{job_id}
 
 ### Verify Fallback System
 1. Set `VALIDATION_FALLBACK_ENABLED=true`
-2. Set `LLM_PROVIDER=openai` and `LLM_FALLBACK_PROVIDER=ollama`
+2. Set `LLM_PROVIDER=claude` and `LLM_FALLBACK_PROVIDER=ollama`
 3. Submit a test request
 4. Check logs for "Validation-triggered fallback decision" messages
 5. Verify which attempt was used in the final results
@@ -397,7 +401,7 @@ Metadata validation: system_type (web|api|mobile), feature_priority (critical|hi
 ### Cost Tracking
 - Implemented in [src/monitoring/cost-tracker.ts](src/monitoring/cost-tracker.ts)
 - Daily reports saved to `logs/cost-reports/`
-- Uses config/pricing.json for OpenAI model pricing
+- Uses config/pricing.json for LLM model pricing
 - Tracks token usage and estimates costs
 
 ### Security Considerations
@@ -424,7 +428,7 @@ Metadata validation: system_type (web|api|mobile), feature_priority (critical|hi
 
 **Providers**:
 - [src/llm/provider-factory.ts](src/llm/provider-factory.ts)
-- [src/llm/providers/openai-provider.ts](src/llm/providers/openai-provider.ts)
+- [src/llm/providers/claude-provider.ts](src/llm/providers/claude-provider.ts)
 - [src/llm/providers/ollama-provider.ts](src/llm/providers/ollama-provider.ts)
 
 **API**:

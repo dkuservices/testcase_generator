@@ -1,6 +1,5 @@
 import { LlmProvider } from './types';
 import { OllamaProvider } from './providers/ollama-provider';
-import { OpenAIProvider } from './providers/openai-provider';
 import { ClaudeProvider } from './providers/claude-provider';
 import { createContextLogger } from '../utils/logger';
 
@@ -14,16 +13,6 @@ export function createLlmProvider(providerName?: string): LlmProvider {
   switch (provider.toLowerCase()) {
     case 'ollama':
       return new OllamaProvider();
-    case 'openai':
-      // Check if OpenAI is available before creating
-      if (!OpenAIProvider.isAvailable()) {
-        logger.warn('OpenAI provider requested but OPENAI_API_KEY not available, falling back to Ollama', {
-          requested_provider: provider,
-          fallback_provider: 'ollama'
-        });
-        return new OllamaProvider();
-      }
-      return new OpenAIProvider();
     case 'claude':
       // Check if Claude CLI is available before creating
       if (!ClaudeProvider.isAvailable()) {

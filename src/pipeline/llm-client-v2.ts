@@ -1,4 +1,4 @@
-import { GeneratedTestScenario, LLMTestScenarioOutput } from '../models/test-scenario';
+import { GeneratedTestScenario, LLMTestScenarioOutput, TestStep } from '../models/test-scenario';
 import { NormalizedInput } from '../models/specification-input';
 import { PromptMessages } from './prompt-builder';
 import { generateTestId } from '../utils/uuid-generator';
@@ -278,13 +278,15 @@ function normalizeScenarioOutput(raw: any): LLMTestScenarioOutput | null {
     return null;
   }
 
+  // Handle test_steps as array of objects (new TestFlo format)
   const testStepsRaw = raw.test_steps ?? raw.steps ?? raw.testSteps;
-  const testSteps = Array.isArray(testStepsRaw)
-    ? testStepsRaw.map(String).map(s => s.trim()).filter(Boolean)
-    : typeof testStepsRaw === 'string'
-      ? testStepsRaw.split(/\r?\n/).map(s => s.trim()).filter(Boolean)
-      : [];
+  const testSteps: TestStep[] = normalizeTestSteps(testStepsRaw);
 
+  // Handle preconditions as array (new format)
+  const preconditionsRaw = raw.preconditions ?? raw.precondition ?? [];
+  const preconditions: string[] = normalizePreconditions(preconditionsRaw);
+
+  // Normalize classification
   const classificationRaw = String(
     raw.scenario_classification ?? raw.classification ?? raw.scenario_type ?? ''
   ).toLowerCase().replace(/\s+/g, '_');
@@ -292,12 +294,14 @@ function normalizeScenarioOutput(raw: any): LLMTestScenarioOutput | null {
     : classificationRaw === 'edge' ? 'edge_case'
     : classificationRaw;
 
+  // Normalize test type
   const testTypeRaw = String(raw.test_type ?? raw.type ?? '').toLowerCase();
   const test_type = testTypeRaw.includes('regress') ? 'regression'
     : testTypeRaw.includes('smoke') ? 'smoke'
     : testTypeRaw.includes('function') ? 'functional'
     : testTypeRaw;
 
+  // Normalize priority
   const priorityRaw = String(raw.priority ?? raw.severity ?? '').toLowerCase();
   const priority = priorityRaw === 'p1' ? 'critical'
     : priorityRaw === 'p2' ? 'high'
@@ -305,15 +309,93 @@ function normalizeScenarioOutput(raw: any): LLMTestScenarioOutput | null {
     : priorityRaw === 'p4' ? 'low'
     : priorityRaw;
 
+  // Normalize automation status
+  const automationRaw = String(raw.automation_status ?? raw.automationStatus ?? '').toLowerCase();
+  const automation_status = automationRaw.includes('ready') || automationRaw.includes('yes') || automationRaw.includes('true')
+    ? 'ready_for_automation'
+    : 'automation_not_needed';
+
+  // Get description (goal)
+  const description = String(raw.description ?? raw.goal ?? raw.objective ?? '').trim();
+
+  // Get test repository folder
+  const test_repository_folder = String(raw.test_repository_folder ?? raw.folder ?? raw.repository_folder ?? '').trim();
+
   return {
     test_name: String(raw.test_name ?? raw.title ?? raw.name ?? '').trim(),
+    description,
     test_type: test_type as LLMTestScenarioOutput['test_type'],
     scenario_classification: scenario_classification as LLMTestScenarioOutput['scenario_classification'],
-    preconditions: String(raw.preconditions ?? raw.precondition ?? '').trim(),
+    preconditions,
     test_steps: testSteps,
-    expected_result: String(raw.expected_result ?? raw.expected ?? raw.expected_outcome ?? '').trim(),
     priority: priority as LLMTestScenarioOutput['priority'],
+    automation_status: automation_status as LLMTestScenarioOutput['automation_status'],
+    test_repository_folder,
   };
+}
+
+/**
+ * Normalizes test steps to the new TestStep[] format
+ * Handles both new format (array of objects) and legacy format (array of strings)
+ */
+function normalizeTestSteps(raw: any): TestStep[] {
+  if (!Array.isArray(raw)) {
+    // If it's a string, split by newlines (legacy support)
+    if (typeof raw === 'string') {
+      const lines = raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      return lines.map((line, index) => ({
+        step_number: index + 1,
+        action: line,
+        input: '',
+        expected_result: '',
+      }));
+    }
+    return [];
+  }
+
+  return raw.map((step, index) => {
+    // New format: object with action, input, expected_result
+    if (step && typeof step === 'object' && !Array.isArray(step)) {
+      return {
+        step_number: step.step_number ?? step.stepNumber ?? step.number ?? index + 1,
+        action: String(step.action ?? step.step ?? step.description ?? '').trim(),
+        input: String(step.input ?? step.data ?? step.test_data ?? '').trim(),
+        expected_result: String(step.expected_result ?? step.expectedResult ?? step.expected ?? step.result ?? '').trim(),
+      };
+    }
+    // Legacy format: string
+    if (typeof step === 'string') {
+      return {
+        step_number: index + 1,
+        action: step.trim(),
+        input: '',
+        expected_result: '',
+      };
+    }
+    // Invalid format
+    return {
+      step_number: index + 1,
+      action: String(step),
+      input: '',
+      expected_result: '',
+    };
+  }).filter(step => step.action.length > 0);
+}
+
+/**
+ * Normalizes preconditions to string array format
+ * Handles both new format (array) and legacy format (single string)
+ */
+function normalizePreconditions(raw: any): string[] {
+  if (Array.isArray(raw)) {
+    return raw.map(item => String(item).trim()).filter(Boolean);
+  }
+  if (typeof raw === 'string' && raw.trim()) {
+    // Split by newlines or bullet points
+    const items = raw.split(/[\n\r]+|[•\-\*]\s+/).map(s => s.trim()).filter(Boolean);
+    return items.length > 0 ? items : [raw.trim()];
+  }
+  return [];
 }
 
 function enrichScenario(
@@ -328,12 +410,14 @@ function enrichScenario(
   return {
     test_id: testId,
     test_name: scenario.test_name,
+    description: scenario.description,
     test_type: scenario.test_type,
     scenario_classification: scenario.scenario_classification,
     preconditions: scenario.preconditions,
     test_steps: scenario.test_steps,
-    expected_result: scenario.expected_result,
     priority: scenario.priority,
+    automation_status: scenario.automation_status,
+    test_repository_folder: scenario.test_repository_folder,
     tags: ['ai-generated', `${attemptType}-attempt`],
     parent_jira_issue_id: normalizedInput.metadata.parent_jira_issue_id,
     traceability: {

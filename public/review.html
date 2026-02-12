@@ -6,7 +6,8 @@
     <title>Scenario Review</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/ui/generate.css">
     <link rel="stylesheet" href="/ui/review.css">
     <script defer src="/ui/review.js"></script>
   </head>
@@ -19,6 +20,8 @@
           <p class="subtitle">Accept, edit, or dismiss scenarios that need human verification.</p>
         </div>
         <div class="actions">
+          <button class="ghost" id="exportButton">Export</button>
+          <button class="danger" id="cleanButton">Clean All</button>
           <button class="ghost" id="refreshButton">Refresh</button>
           <div class="status-pill" id="countPill">0 scenarios</div>
         </div>
@@ -86,18 +89,29 @@
                 <option value="low">Low</option>
               </select>
             </label>
+            <label>
+              <span>Automation Status</span>
+              <select id="editAutomationStatus">
+                <option value="ready_for_automation">Ready for automation</option>
+                <option value="automation_not_needed">Automation not needed</option>
+              </select>
+            </label>
+            <label>
+              <span>Test Repository Folder</span>
+              <input id="editRepositoryFolder" placeholder="e.g., KIS2/Login">
+            </label>
           </div>
           <label>
-            <span>Preconditions</span>
+            <span>Description (Objective)</span>
+            <textarea id="editDescription" rows="2" placeholder="Objective: ..."></textarea>
+          </label>
+          <label>
+            <span>Preconditions (one per line)</span>
             <textarea id="editPreconditions" rows="3"></textarea>
           </label>
           <label>
-            <span>Test steps (one per line)</span>
-            <textarea id="editSteps" rows="6"></textarea>
-          </label>
-          <label>
-            <span>Expected result</span>
-            <textarea id="editExpected" rows="3"></textarea>
+            <span>Test steps (format: action | input | expected_result - one step per line)</span>
+            <textarea id="editSteps" rows="8" placeholder="Navigate to page | URL: /login | Login screen is displayed"></textarea>
           </label>
           <label>
             <span>Notes</span>
@@ -110,5 +124,45 @@
         </form>
       </div>
     </div>
+
+    <div class="modal hidden" id="exportModal" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="modal-card">
+        <header>
+          <h2>Export scenárov</h2>
+          <button class="icon" id="closeExportModal" aria-label="Close">X</button>
+        </header>
+        <form id="exportForm">
+          <div class="export-section">
+            <h4>Zahrnúť statusy</h4>
+            <div class="checkbox-group">
+              <label class="checkbox-field">
+                <input type="checkbox" name="exportStatus" value="validated" checked>
+                <span>Validated</span>
+              </label>
+              <label class="checkbox-field">
+                <input type="checkbox" name="exportStatus" value="needs_review" checked>
+                <span>Needs Review</span>
+              </label>
+              <label class="checkbox-field">
+                <input type="checkbox" name="exportStatus" value="dismissed">
+                <span>Dismissed</span>
+              </label>
+            </div>
+          </div>
+          <div class="export-section">
+            <h4>Formát</h4>
+            <div class="export-format-options">
+              <button type="button" class="ghost export-format-btn active" data-format="excel">Excel (.xlsx)</button>
+              <button type="button" class="ghost export-format-btn" data-format="pdf">PDF</button>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="ghost" id="cancelExport">Zrušiť</button>
+            <button type="submit" class="primary" id="downloadExport">Stiahnuť</button>
+          </div>
+        </form>
+      </div>
+    </div>
   </body>
 </html>
+

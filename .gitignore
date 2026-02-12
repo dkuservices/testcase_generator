@@ -6,16 +6,29 @@ dist/
 
 # Environment variables
 .env
+.env.*
+!.env.example
 
 # Logs
-logs
+logs/
 
-# Runtime data
-data/generated/*.json
-data/needs_review/*.json
-data/jira_payloads/*.json
-data/jobs/*.json
-data/metadata/*.json
+# Runtime data - all JSON data generated at runtime
+data/generated/
+data/needs_review/
+data/jira_payloads/
+data/jobs/
+data/metadata/
+data/batch_jobs/
+data/batch_summaries/
+data/batch_aggregations/
+data/chunks/
+data/components/
+data/deduplications/
+data/documents/
+data/manuals/
+data/pages/
+data/projects/
+data/temp_uploads/
 data/scheduler_state.json
 
 # IDE
@@ -28,8 +41,12 @@ data/scheduler_state.json
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Testing (future)
 coverage/
 .nyc_output/
 request.json
+
+# Claude Code
+.claude/

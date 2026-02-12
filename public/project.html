@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Project - Test Scenario Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/ui/generate.css">
+    <link rel="stylesheet" href="/ui/hierarchy.css">
+    <link rel="stylesheet" href="/ui/review.css">
+    <link rel="stylesheet" href="/ui/documents.css">
+    <script defer src="/ui/sidebar.js"></script>
+    <script defer src="/ui/export-helper.js"></script>
+    <script defer src="/ui/project.js"></script>
+  </head>
+  <body>
+    <div class="app-layout">
+      <!-- Sidebar -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <h2>Test Generator</h2>
+          <p>Project hierarchy</p>
+        </div>
+        <nav class="sidebar-nav" id="sidebarTree"></nav>
+        <div class="sidebar-actions">
+          <a href="/generate" class="sidebar-link">
+            <span>+</span> Quick Generate
+          </a>
+          <a href="/review" class="sidebar-link">
+            <span>!</span> Review Desk
+          </a>
+          <a href="/jobs" class="sidebar-link">
+            <span>&#9881;</span> Joby
+          </a>
+          <a href="/documents" class="sidebar-link">
+            <span>&#128196;</span> Dokumenty
+          </a>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <div class="breadcrumb">
+          <a href="/projects">Projects</a>
+          <span>/</span>
+          <span class="current" id="breadcrumbName">Loading...</span>
+        </div>
+
+        <div class="page-header">
+          <h1 id="projectName">Loading...</h1>
+          <p id="projectDescription"></p>
+        </div>
+
+        <div class="action-bar">
+          <div class="action-bar-left">
+            <span id="componentCount">0 components</span>
+          </div>
+          <div class="action-bar-right">
+            <button type="button" class="ghost" id="editProjectBtn">Edit</button>
+            <button type="button" class="ghost danger" id="deleteProjectBtn">Delete</button>
+            <button type="button" class="primary" id="createComponentBtn">New Component</button>
+          </div>
+        </div>
+
+        <div class="stats-row" id="statsRow">
+          <div class="stat-box">
+            <div class="stat-value" id="totalComponents">0</div>
+            <div class="stat-label">Components</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="totalPages">0</div>
+            <div class="stat-label">Pages</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="totalTests">0</div>
+            <div class="stat-label">Test Scenarios</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="totalCrossModuleTests">0</div>
+            <div class="stat-label">Cross-Module Tests</div>
+          </div>
+        </div>
+
+        <!-- Manual/Handbook Section -->
+        <div class="section-spaced" id="manualSection">
+          <div class="section-header">
+            <div>
+              <h3 style="margin: 0; display: flex; align-items: center; gap: 8px;">
+                Prirucka / Handbook
+              </h3>
+              <p class="muted" style="margin: 8px 0 0 0;">Nahrajte prirucku popisujucu funkcionalitu systemu. AI ju pouzije pri generovani cross-module testov.</p>
+            </div>
+          </div>
+
+          <!-- Current Manual Display -->
+          <div id="projectManualDisplay" class="manual-display" style="display: none; margin: 12px 0;">
+            <div class="manual-display-header">
+              <h4 class="manual-display-title">
+                <span>&#10003;</span> Prirucka nahrana
+              </h4>
+              <div>
+                <button type="button" class="warn small" id="removeManualBtn">Odstranit</button>
+              </div>
+            </div>
+            <div id="projectManualContent" class="manual-display-content" style="max-height: 200px;"></div>
+            <div id="projectManualMeta" class="manual-display-meta"></div>
+          </div>
+
+          <!-- Upload Manual Form -->
+          <div id="projectManualUploadForm" style="margin-top: 1rem;">
+            <div class="manual-upload-form">
+              <h4 id="projectManualFormTitle">Nahrat prirucku</h4>
+              <div class="form-group">
+                <label>Typ vstupu</label>
+                <div class="radio-group" style="margin-bottom: 1rem;">
+                  <label class="radio-option">
+                    <input type="radio" name="projectManualType" value="text" checked>
+                    <span>Text</span>
+                  </label>
+                  <label class="radio-option">
+                    <input type="radio" name="projectManualType" value="file">
+                    <span>Subor (docx/pdf/txt)</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Text Input -->
+              <div id="projectManualTextInput" class="manual-input-section">
+                <div class="form-group">
+                  <label for="projectManualText">Text prirucky</label>
+                  <textarea id="projectManualText" rows="8" placeholder="Vlozte obsah prirucky, kde je popisana existujuca funkcionalita systemu...
+
+Napriklad:
+- Popis modulov a ich funkcii
+- Existujuce pravidla a validacie
+- Workflow a procesy
+- Biznis logika"></textarea>
+                </div>
+              </div>
+
+              <!-- File Input -->
+              <div id="projectManualFileInput" class="manual-input-section" style="display: none;">
+                <div class="form-group">
+                  <label for="projectManualFile">Nahrat subor prirucky</label>
+                  <input type="file" id="projectManualFile" accept=".docx,.pdf,.txt" style="padding: 12px; border: 2px dashed var(--border); border-radius: 6px; width: 100%; cursor: pointer;">
+                  <p class="muted" style="margin-top: 0.5rem; font-size: 0.85rem;">Podporovane formaty: docx, pdf, txt</p>
+                </div>
+              </div>
+
+              <div class="manual-form-actions">
+                <button type="button" class="primary" id="saveProjectManualBtn">Ulozit prirucku</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+          <button type="button" class="tab-btn active" data-tab="components">Komponenty</button>
+          <button type="button" class="tab-btn" data-tab="crossmodule">Cross-Module Testy</button>
+        </div>
+
+        <!-- Components Tab -->
+        <div class="tab-content active" id="componentsTab">
+          <div class="cards-grid" id="componentsGrid">
+            <!-- Components will be populated here -->
+          </div>
+
+          <div class="empty-state" id="emptyState" style="display: none;">
+            <h3>No components yet</h3>
+            <p>Create components to organize your test scenarios by feature or module</p>
+            <button type="button" class="primary" id="createComponentEmptyBtn">Create Component</button>
+          </div>
+        </div>
+
+        <!-- Cross-Module Tests Tab -->
+        <div class="tab-content" id="crossmoduleTab">
+          <div class="action-bar">
+            <div class="action-bar-left">
+              <span id="crossModuleTestCount">0 cross-module testov</span>
+            </div>
+            <div class="action-bar-right">
+              <label class="field-inline" for="maxCrossModuleTestsInput">
+                <span>Max testov</span>
+                <input type="number" id="maxCrossModuleTestsInput" min="1" max="20" value="5">
+              </label>
+              <button type="button" class="ghost" id="exportCrossModuleBtn">Export</button>
+              <button type="button" class="warn" id="clearAllCrossModuleBtn">Vymazat vsetky</button>
+              <button type="button" class="primary" id="generateCrossModuleBtn">Generovat Cross-Module Testy</button>
+            </div>
+          </div>
+
+          <div class="stats-row" id="crossModuleStatsRow">
+            <div class="stat-box">
+              <div class="stat-value" id="totalCrossModuleScenarios">0</div>
+              <div class="stat-label">Celkom scenarov</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-value" id="validatedCrossModuleScenarios">0</div>
+              <div class="stat-label">Validovane</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-value" id="needsReviewCrossModuleScenarios">0</div>
+              <div class="stat-label">Na kontrolu</div>
+            </div>
+          </div>
+
+          <!-- Filter Controls -->
+          <div class="filter-controls" id="crossModuleFilterControls" style="display: none;">
+            <label class="control">
+              <span>Status</span>
+              <select id="crossModuleStatusFilter">
+                <option value="all">Vsetky scenare</option>
+                <option value="validated">Len validovane</option>
+                <option value="needs_review">Len na kontrolu</option>
+              </select>
+            </label>
+            <label class="control">
+              <span>Klasifikacia</span>
+              <select id="crossModuleClassificationFilter">
+                <option value="all">Vsetky typy</option>
+                <option value="happy_path">Happy path</option>
+                <option value="negative">Negative</option>
+                <option value="edge_case">Edge case</option>
+              </select>
+            </label>
+            <label class="control grow">
+              <span>Hladanie</span>
+              <input id="crossModuleSearchInput" type="search" placeholder="Filtrovat podla nazvu alebo popisu testu...">
+            </label>
+          </div>
+
+          <!-- Generation Status -->
+          <div class="status" id="crossModuleGenerationStatus" style="display: none;">
+            <div class="status-line" id="crossModuleGenerationStatusMessage">Generujem testy...</div>
+            <div class="status-meta" id="crossModuleGenerationStatusMeta"></div>
+          </div>
+
+          <div id="crossModuleTestsContainer">
+            <!-- Cross-module tests will be populated here -->
+          </div>
+
+          <div class="empty-state" id="crossModuleEmptyState" style="display: none;">
+            <h3>Ziadne cross-module testy</h3>
+            <p>Vygenerujte cross-module testy, ktore pokryvaju kompletne biznis workflow napriec vsetkymi modulmi projektu</p>
+            <button type="button" class="primary" id="generateCrossModuleEmptyBtn">Generovat Cross-Module Testy</button>
+          </div>
+
+          <!-- Job History -->
+          <div id="crossModuleJobHistorySection" class="section-spaced">
+            <h3>Historia generovania</h3>
+            <div id="crossModuleJobHistoryContainer"></div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar">Menu</button>
+
+    <!-- Create Component Modal -->
+    <div class="modal-overlay" id="createModal">
+      <div class="modal">
+        <h2>Create New Component</h2>
+        <form id="createComponentForm">
+          <div class="form-group">
+            <label for="componentName">Component Name</label>
+            <input type="text" id="componentName" name="name" required placeholder="e.g., User Authentication">
+          </div>
+          <div class="form-group">
+            <label for="componentDescription">Description (optional)</label>
+            <textarea id="componentDescription" name="description" placeholder="Brief description of the component..."></textarea>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="ghost" id="cancelCreateBtn">Cancel</button>
+            <button type="submit" class="primary">Create Component</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Edit Project Modal -->
+    <div class="modal-overlay" id="editModal">
+      <div class="modal">
+        <h2>Edit Project</h2>
+        <form id="editProjectForm">
+          <div class="form-group">
+            <label for="editProjectName">Project Name</label>
+            <input type="text" id="editProjectName" name="name" required>
+          </div>
+          <div class="form-group">
+            <label for="editProjectDescription">Description (optional)</label>
+            <textarea id="editProjectDescription" name="description"></textarea>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="ghost" id="cancelEditBtn">Cancel</button>
+            <button type="submit" class="primary">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div class="modal-overlay" id="exportModal">
+      <div class="modal">
+        <h2>Export scenarov</h2>
+        <button class="icon modal-close" id="closeExportModal" aria-label="Close">X</button>
+        <form id="exportForm">
+          <div class="export-section">
+            <h4>Zahrnut statusy</h4>
+            <div class="checkbox-group">
+              <label class="checkbox-field">
+                <input type="checkbox" name="exportStatus" value="validated" checked>
+                <span>Validated</span>
+              </label>
+              <label class="checkbox-field">
+                <input type="checkbox" name="exportStatus" value="needs_review" checked>
+                <span>Needs Review</span>
+              </label>
+              <label class="checkbox-field">
+                <input type="checkbox" name="exportStatus" value="dismissed">
+                <span>Dismissed</span>
+              </label>
+            </div>
+          </div>
+          <div class="export-section">
+            <h4>Format</h4>
+            <div class="export-format-options">
+              <button type="button" class="ghost export-format-btn active" data-format="excel">Excel (.xlsx)</button>
+              <button type="button" class="ghost export-format-btn" data-format="pdf">PDF</button>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="ghost" id="cancelExport">Zrusit</button>
+            <button type="submit" class="primary" id="downloadExport">Stiahnut</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Edit Scenario Modal -->
+    <div class="modal-overlay" id="editScenarioModal">
+      <div class="modal modal-lg">
+        <h2>Upravit Cross-Module Test</h2>
+        <form id="editScenarioForm">
+          <input type="hidden" id="editScenarioTestId">
+          <div class="form-row">
+            <div class="form-group flex-2">
+              <label for="editScenarioName">Nazov testu</label>
+              <input type="text" id="editScenarioName" name="test_name" required>
+            </div>
+            <div class="form-group">
+              <label for="editScenarioPriority">Priorita</label>
+              <select id="editScenarioPriority" name="priority">
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="editScenarioType">Typ testu</label>
+              <select id="editScenarioType" name="test_type">
+                <option value="functional">Functional</option>
+                <option value="regression">Regression</option>
+                <option value="smoke">Smoke</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="editScenarioClassification">Klasifikacia</label>
+              <select id="editScenarioClassification" name="scenario_classification">
+                <option value="happy_path">Happy Path</option>
+                <option value="negative">Negative</option>
+                <option value="edge_case">Edge Case</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="editScenarioAutomation">Status automatizacie</label>
+              <select id="editScenarioAutomation" name="automation_status">
+                <option value="ready_for_automation">Ready for automation</option>
+                <option value="automation_not_needed">Automation not needed</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="editScenarioDescription">Popis</label>
+            <textarea id="editScenarioDescription" name="description" rows="2" placeholder="Ciel: ..."></textarea>
+          </div>
+          <div class="form-group">
+            <label for="editScenarioPreconditions">Predpoklady (jeden na riadok)</label>
+            <textarea id="editScenarioPreconditions" name="preconditions" rows="3"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Kroky testu (Test Steps)</label>
+            <div id="editScenarioStepsContainer" class="steps-editor">
+              <!-- Steps will be dynamically added here -->
+            </div>
+            <button type="button" class="ghost small" id="addStepBtn">+ Pridat krok</button>
+          </div>
+          <div class="form-row">
+            <div class="form-group flex-2">
+              <label for="editScenarioFolder">Test Repository Folder</label>
+              <input type="text" id="editScenarioFolder" name="test_repository_folder" placeholder="e.g., Project/CrossModule">
+            </div>
+            <div class="form-group">
+              <label for="editScenarioNotes">Poznamky k validacii</label>
+              <input type="text" id="editScenarioNotes" name="validation_notes" placeholder="Volitelne poznamky">
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="ghost" id="cancelScenarioEditBtn">Zrusit</button>
+            <button type="submit" class="primary">Ulozit zmeny</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </body>
+</html>
