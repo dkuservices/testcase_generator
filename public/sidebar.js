@@ -18,14 +18,14 @@ function setupSidebarToggle() {
     sidebar.classList.remove('open');
     backdrop.classList.remove('active');
     toggleButton.setAttribute('aria-expanded', 'false');
-    toggleButton.setAttribute('aria-label', 'Open navigation');
+    toggleButton.setAttribute('aria-label', 'Otvoriť navigáciu');
   };
 
   const openSidebar = () => {
     sidebar.classList.add('open');
     backdrop.classList.add('active');
     toggleButton.setAttribute('aria-expanded', 'true');
-    toggleButton.setAttribute('aria-label', 'Close navigation');
+    toggleButton.setAttribute('aria-label', 'Zavrieť navigáciu');
   };
 
   toggleButton.addEventListener('click', () => {
@@ -68,14 +68,14 @@ async function loadHierarchy() {
 
   try {
     const response = await fetch('/api/hierarchy');
-    if (!response.ok) throw new Error('Failed to load hierarchy');
+    if (!response.ok) throw new Error('Nepodarilo sa načítať hierarchiu');
 
     const data = await response.json();
     renderTree(sidebarTree, data.hierarchy);
     highlightCurrentNode();
   } catch (error) {
     console.error('Error loading hierarchy:', error);
-    sidebarTree.innerHTML = '<div class="sidebar-empty">Failed to load hierarchy</div>';
+    sidebarTree.innerHTML = '<div class="sidebar-empty">Nepodarilo sa načítať hierarchiu</div>';
   }
 }
 
@@ -83,8 +83,8 @@ function renderTree(container, nodes) {
   if (!nodes || nodes.length === 0) {
     container.innerHTML = `
       <div class="sidebar-empty">
-        <p>No projects yet</p>
-        <a href="/projects">Create one</a>
+        <p>Žiadne projekty</p>
+        <a href="/projects">Vytvoriť projekt</a>
       </div>
     `;
     return;

@@ -1,27 +1,29 @@
 <!doctype html>
-<html lang="en">
+<html lang="sk">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Scenario Generator</title>
+    <title>Generátor scenárov</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/ui/generate.css">
+    <link rel="stylesheet" href="/ui/toast.css">
+    <script defer src="/ui/toast.js"></script>
     <script defer src="/ui/generate.js"></script>
   </head>
   <body>
     <main class="page">
       <header class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">Manual Launch</p>
-          <h1>Test Scenario Generator</h1>
-          <p class="subtitle">Paste a Confluence link and kick off a fresh scenario run in seconds.</p>
+          <p class="eyebrow">Manuálne spustenie</p>
+          <h1>Generátor testovacích scenárov</h1>
+          <p class="subtitle">Vložte odkaz na Confluence stránku a spustite generovanie scenárov v priebehu sekúnd.</p>
         </div>
         <div class="hero-card">
-          <div class="chip">Manual mode</div>
-          <p>Uses the configured LLM provider and validation pipeline.</p>
-          <a class="ghost-link" href="/review">Open review desk</a>
+          <div class="chip">Manuálny režim</div>
+          <p>Používa nakonfigurovaného LLM poskytovateľa a validačný pipeline.</p>
+          <a class="ghost-link" href="/review">Otvoriť review desk</a>
         </div>
       </header>
 
@@ -29,10 +31,10 @@
         <!-- Mode Toggle -->
         <div class="mode-toggle">
           <button type="button" class="mode-btn active" data-mode="single">
-            Single Page
+            Jedna stránka
           </button>
           <button type="button" class="mode-btn" data-mode="batch">
-            Batch Mode
+            Dávkový režim
           </button>
         </div>
 
@@ -40,7 +42,7 @@
           <!-- Single Mode Input (default visible) -->
           <div id="singleModeFields">
             <label class="field">
-              <span>Confluence page link</span>
+              <span>Odkaz na Confluence stránku</span>
               <input id="linkInput" name="link" type="url" placeholder="https://your-domain.atlassian.net/wiki/spaces/SPACE/pages/123456/Page+Title">
             </label>
           </div>
@@ -48,30 +50,30 @@
           <!-- Batch Mode Input (initially hidden) -->
           <div id="batchModeFields" style="display: none;">
             <label class="field">
-              <span>Confluence page links (one per line)</span>
+              <span>Odkazy na Confluence stránky (jeden na riadok)</span>
               <textarea id="linksTextarea" name="links" rows="8" placeholder="https://domain.atlassian.net/wiki/spaces/SPACE/pages/123456/Page1&#10;https://domain.atlassian.net/wiki/spaces/SPACE/pages/123457/Page2&#10;https://domain.atlassian.net/wiki/spaces/SPACE/pages/123458/Page3"></textarea>
             </label>
 
             <div class="checkbox-group">
               <label class="checkbox-field">
                 <input type="checkbox" id="pageTestsCheckbox" checked>
-                <span>Generate page-level tests</span>
+                <span>Generovať testy na úrovni stránky</span>
               </label>
               <label class="checkbox-field">
                 <input type="checkbox" id="moduleTestsCheckbox" checked>
-                <span>Generate module-level integration tests</span>
+                <span>Generovať integračné testy na úrovni modulu</span>
               </label>
             </div>
           </div>
 
           <div class="actions">
-            <button type="submit" class="primary" id="submitButton">Start generation</button>
-            <button type="button" class="ghost" id="resetButton">Clear</button>
+            <button type="submit" class="primary" id="submitButton">Spustiť generovanie</button>
+            <button type="button" class="ghost" id="resetButton">Vyčistiť</button>
           </div>
         </form>
 
         <div class="status" id="statusPanel">
-          <div class="status-line" id="statusMessage">Paste a link to begin.</div>
+          <div class="status-line" id="statusMessage">Vložte odkaz pre začatie.</div>
           <div class="status-meta" id="statusMeta"></div>
 
           <!-- Batch Progress (initially hidden) -->
@@ -79,23 +81,23 @@
             <div class="progress-bar">
               <div class="progress-fill" id="progressFill"></div>
             </div>
-            <div class="progress-text" id="progressText">0 / 0 pages completed</div>
+            <div class="progress-text" id="progressText">0 / 0 stránok dokončených</div>
           </div>
         </div>
       </section>
 
       <section class="grid">
         <article class="note">
-          <h3>What happens next</h3>
-          <p>The pipeline fetches the spec, builds the prompt, and validates every scenario before output.</p>
+          <h3>Čo sa stane ďalej</h3>
+          <p>Pipeline načíta špecifikáciu, zostaví prompt a pred výstupom zvaliduje každý scenár.</p>
         </article>
         <article class="note">
-          <h3>Need review?</h3>
-          <p>Anything flagged as needs review appears in the review desk automatically.</p>
+          <h3>Potrebujete kontrolu?</h3>
+          <p>Všetko označené na kontrolu sa automaticky zobrazí v review desk.</p>
         </article>
         <article class="note">
-          <h3>Keep it clean</h3>
-          <p>Only Confluence page links are supported for this quick launch workflow.</p>
+          <h3>Udržujte poriadok</h3>
+          <p>Pre tento rýchly pracovný postup sú podporované iba odkazy na Confluence stránky.</p>
         </article>
       </section>
     </main>

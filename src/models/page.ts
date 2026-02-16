@@ -61,7 +61,7 @@ export interface PageSummary {
   project_id: string;
   name: string;
   confluence_link: string;
-  latest_job_status?: 'processing' | 'completed' | 'failed';
+  latest_job_status?: 'processing' | 'completed' | 'failed' | 'cancelled';
   test_count: number;
   last_generated?: string;
   dependencies?: PageDependency[];

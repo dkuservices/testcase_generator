@@ -159,11 +159,13 @@ function switchTab(tabName) {
 }
 
 async function loadProject() {
+  document.getElementById('componentsGrid').innerHTML = '<div class="loading-spinner"></div>';
+
   try {
     const response = await fetch(`/api/projects/${projectId}`);
     if (!response.ok) {
       if (response.status === 404) {
-        alert('Project not found');
+        showToast('Projekt nebol nájdený', 'error');
         window.location.href = '/projects';
         return;
       }
@@ -185,14 +187,14 @@ function renderProject(project) {
   document.title = `${project.name} - Test Scenario Generator`;
   document.getElementById('breadcrumbName').textContent = project.name;
   document.getElementById('projectName').textContent = project.name;
-  document.getElementById('projectDescription').textContent = project.description || 'No description';
+  document.getElementById('projectDescription').textContent = project.description || 'Bez popisu';
 
   // Populate edit form
   document.getElementById('editProjectName').value = project.name;
   document.getElementById('editProjectDescription').value = project.description || '';
 
   const components = project.components || [];
-  document.getElementById('componentCount').textContent = `${components.length} component${components.length !== 1 ? 's' : ''}`;
+  document.getElementById('componentCount').textContent = `${components.length} komponentov`;
 
   // Calculate stats
   let totalPages = 0;
@@ -229,11 +231,11 @@ function renderComponents(components) {
   grid.innerHTML = components.map(component => `
     <a href="/component/${component.component_id}" class="item-card">
       <h3>${escapeHtml(component.name)}</h3>
-      <p>${escapeHtml(component.description || 'No description')}</p>
+      <p>${escapeHtml(component.description || 'Bez popisu')}</p>
       <div class="item-card-meta">
-        <span>${component.page_count || 0} pages</span>
-        <span>${component.page_level_tests || 0} page tests</span>
-        <span>${component.component_level_tests || 0} integration tests</span>
+        <span>${component.page_count || 0} stránok</span>
+        <span>${component.page_level_tests || 0} testov stránok</span>
+        <span>${component.component_level_tests || 0} integračných testov</span>
       </div>
     </a>
   `).join('');
@@ -410,13 +412,13 @@ async function handleScenarioAction(e) {
       renderFilteredCrossModuleTests();
       updateCrossModuleStats();
     } else if (action === 'dismiss') {
-      if (!confirm('Zamietnuť tento scenar?')) return;
+      if (!(await showConfirm('Zamietnuť tento scenár?'))) return;
       await updateScenarioValidation(testId, 'dismissed', 'Zamietnuty cez project review');
       scenario.validation_status = 'dismissed';
       renderFilteredCrossModuleTests();
       updateCrossModuleStats();
     } else if (action === 'delete') {
-      if (!confirm('Zmazat tento scenar natrvalo? Tuto akciu nie je mozne vratit.')) return;
+      if (!(await showConfirm('Zmazať tento scenár natrvalo? Túto akciu nie je možné vrátiť.', 'Zmazať', 'Zrušiť', true))) return;
       await deleteScenario(testId);
       allCrossModuleTests = allCrossModuleTests.filter(s => s.test_id !== testId);
       renderFilteredCrossModuleTests();
@@ -425,7 +427,7 @@ async function handleScenarioAction(e) {
       openScenarioEditModal(scenario);
     }
   } catch (error) {
-    alert('Akcia zlyhala: ' + error.message);
+    showToast('Akcia zlyhala: ' + error.message, 'error');
   }
 }
 
@@ -485,7 +487,7 @@ async function handleGenerateCrossModule() {
     startPolling(result.job_id);
   } catch (error) {
     console.error('Error generating cross-module tests:', error);
-    alert('Chyba: ' + error.message);
+    showToast('Chyba: ' + error.message, 'error');
     btn.disabled = false;
     btn.textContent = originalText;
   }
@@ -551,11 +553,11 @@ function showGenerationStatus(type, message) {
 async function handleClearAllCrossModule() {
   const testCount = allCrossModuleTests.length;
   if (testCount === 0) {
-    alert('Ziadne cross-module testy na vymazanie.');
+    showToast('Žiadne cross-module testy na vymazanie.', 'warning');
     return;
   }
 
-  if (!confirm(`Naozaj chcete vymazat vsetkych ${testCount} cross-module testov?\n\nTuto akciu nie je mozne vratit.`)) {
+  if (!(await showConfirm(`Naozaj chcete vymazať všetkých ${testCount} cross-module testov? Túto akciu nie je možné vrátiť.`, 'Vymazať všetko', 'Zrušiť', true))) {
     return;
   }
 
@@ -580,10 +582,10 @@ async function handleClearAllCrossModule() {
     renderFilteredCrossModuleTests();
     updateCrossModuleStats();
     document.getElementById('totalCrossModuleTests').textContent = '0';
-    alert(`Uspesne vymazanych ${result.deleted_count} cross-module testov.`);
+    showToast(`Úspešne vymazaných ${result.deleted_count} cross-module testov.`, 'success');
   } catch (error) {
     console.error('Error clearing cross-module tests:', error);
-    alert('Chyba: ' + error.message);
+    showToast('Chyba: ' + error.message, 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = originalText;
@@ -775,7 +777,7 @@ async function handleEditScenario(e) {
     closeScenarioEditModal();
     renderFilteredCrossModuleTests();
   } catch (error) {
-    alert('Chyba pri ukladani: ' + error.message);
+    showToast('Chyba pri ukladaní: ' + error.message, 'error');
   } finally {
     submitBtn.disabled = false;
     submitBtn.textContent = originalText;
@@ -819,7 +821,7 @@ async function handleCreateComponent(e) {
 
   try {
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Creating...';
+    submitBtn.textContent = 'Vytváram...';
 
     const name = document.getElementById('componentName').value.trim();
     const description = document.getElementById('componentDescription').value.trim();
@@ -840,7 +842,7 @@ async function handleCreateComponent(e) {
     window.location.href = `/component/${component.component_id}`;
   } catch (error) {
     console.error('Error creating component:', error);
-    alert('Failed to create component: ' + error.message);
+    showToast('Nepodarilo sa vytvoriť komponent: ' + error.message, 'error');
   } finally {
     submitBtn.disabled = false;
     submitBtn.textContent = originalText;
@@ -856,7 +858,7 @@ async function handleEditProject(e) {
 
   try {
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Saving...';
+    submitBtn.textContent = 'Ukladám...';
 
     const name = document.getElementById('editProjectName').value.trim();
     const description = document.getElementById('editProjectDescription').value.trim();
@@ -877,7 +879,7 @@ async function handleEditProject(e) {
     if (window.sidebarRefresh) window.sidebarRefresh();
   } catch (error) {
     console.error('Error updating project:', error);
-    alert('Failed to update project: ' + error.message);
+    showToast('Nepodarilo sa aktualizovať projekt: ' + error.message, 'error');
   } finally {
     submitBtn.disabled = false;
     submitBtn.textContent = originalText;
@@ -885,7 +887,7 @@ async function handleEditProject(e) {
 }
 
 async function handleDeleteProject() {
-  if (!confirm(`Are you sure you want to delete "${currentProject.name}"?\n\nThis will also delete all components and pages within this project. This action cannot be undone.`)) {
+  if (!(await showConfirm(`Naozaj chcete zmazať "${currentProject.name}"? Toto vymaže aj všetky komponenty a stránky v tomto projekte. Túto akciu nie je možné vrátiť.`, 'Zmazať', 'Zrušiť', true))) {
     return;
   }
 
@@ -902,7 +904,7 @@ async function handleDeleteProject() {
     window.location.href = '/projects';
   } catch (error) {
     console.error('Error deleting project:', error);
-    alert('Failed to delete project: ' + error.message);
+    showToast('Nepodarilo sa zmazať projekt: ' + error.message, 'error');
   }
 }
 
@@ -928,7 +930,7 @@ async function handleSaveProjectManual() {
     if (selectedType === 'text') {
       const text = document.getElementById('projectManualText').value.trim();
       if (!text) {
-        alert('Zadajte text prirucky');
+        showToast('Zadajte text príručky', 'warning');
         return;
       }
 
@@ -941,7 +943,7 @@ async function handleSaveProjectManual() {
       const fileInput = document.getElementById('projectManualFile');
       const file = fileInput.files[0];
       if (!file) {
-        alert('Vyberte subor');
+        showToast('Vyberte súbor', 'warning');
         return;
       }
 
@@ -961,7 +963,7 @@ async function handleSaveProjectManual() {
 
     await loadProject();
   } catch (error) {
-    alert('Chyba pri ukladani: ' + error.message);
+    showToast('Chyba pri ukladaní: ' + error.message, 'error');
   } finally {
     saveBtn.disabled = false;
     saveBtn.textContent = originalText;
@@ -969,7 +971,7 @@ async function handleSaveProjectManual() {
 }
 
 async function handleRemoveProjectManual() {
-  if (!confirm('Naozaj chcete odstranit prirucku?')) return;
+  if (!(await showConfirm('Naozaj chcete odstrániť príručku?'))) return;
 
   try {
     const response = await fetch(`/api/projects/${projectId}/manual`, {
@@ -983,7 +985,7 @@ async function handleRemoveProjectManual() {
 
     await loadProject();
   } catch (error) {
-    alert('Chyba: ' + error.message);
+    showToast('Chyba: ' + error.message, 'error');
   }
 }
 
@@ -1044,9 +1046,9 @@ function showError(message) {
   const grid = document.getElementById('componentsGrid');
   grid.innerHTML = `
     <div class="empty-state">
-      <h3>Error</h3>
+      <h3>Chyba</h3>
       <p>${escapeHtml(message)}</p>
-      <button type="button" class="primary" onclick="loadProject()">Retry</button>
+      <button type="button" class="primary" onclick="loadProject()">Skúsiť znova</button>
     </div>
   `;
 }

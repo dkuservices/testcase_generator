@@ -169,7 +169,7 @@ function addFiles(files) {
   });
 
   if (validFiles.length === 0) {
-    alert('Iba .docx a .doc subory su povolene');
+    showToast('Iba .docx a .doc súbory sú povolené', 'warning');
     return;
   }
 
@@ -182,7 +182,7 @@ function addFiles(files) {
 
   if (selectedFiles.length > 20) {
     selectedFiles = selectedFiles.slice(0, 20);
-    alert('Maximum 20 suborov. Prebytocne boli odstranene.');
+    showToast('Maximum 20 súborov. Prebytočné boli odstránené.', 'warning');
   }
 
   renderFileList();
@@ -263,13 +263,13 @@ function renderStep2FileList() {
 async function startProcessing() {
   const projectName = projectNameInput.value.trim();
   if (!projectName) {
-    alert('Zadajte nazov projektu');
+    showToast('Zadajte názov projektu', 'warning');
     projectNameInput.focus();
     return;
   }
 
   if (selectedFiles.length === 0) {
-    alert('Nie su vybrane ziadne subory');
+    showToast('Nie sú vybrané žiadne súbory', 'warning');
     return;
   }
 
@@ -547,7 +547,7 @@ function handleManualFileUpload(e) {
 
   const ext = file.name.split('.').pop().toLowerCase();
   if (!['docx', 'pdf', 'txt'].includes(ext)) {
-    alert('Podporovane su iba docx, pdf a txt subory');
+    showToast('Podporované sú iba docx, pdf a txt súbory', 'warning');
     e.target.value = '';
     return;
   }
@@ -555,7 +555,7 @@ function handleManualFileUpload(e) {
   // Updated limit: 200MB for large manuals (will be chunked automatically)
   const maxSizeMB = 200;
   if (file.size > maxSizeMB * 1024 * 1024) {
-    alert(`Subor je prilis velky (max ${maxSizeMB} MB)`);
+    showToast(`Súbor je príliš veľký (max ${maxSizeMB} MB)`, 'warning');
     e.target.value = '';
     return;
   }

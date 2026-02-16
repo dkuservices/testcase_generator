@@ -9,6 +9,36 @@ const chatState = {
   pendingEl: null,
 };
 
+function saveChatMessages() {
+  if (!pageId) return;
+  try {
+    localStorage.setItem(`page:${pageId}:chat`, JSON.stringify(chatState.messages));
+  } catch (_) { /* quota exceeded – ignore */ }
+}
+
+function loadChatMessages() {
+  if (!pageId) return;
+  try {
+    const stored = localStorage.getItem(`page:${pageId}:chat`);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        chatState.messages = parsed;
+      }
+    }
+  } catch (_) { /* corrupted – ignore */ }
+}
+
+function restoreChatUI() {
+  if (!chatElements.log || chatState.messages.length === 0) return;
+  if (chatElements.empty) {
+    chatElements.empty.style.display = 'none';
+  }
+  for (const msg of chatState.messages) {
+    appendChatMessage(msg.role, msg.content);
+  }
+}
+
 const filterState = {
   status: 'all',
   classification: 'all',
@@ -52,6 +82,10 @@ document.addEventListener('DOMContentLoaded', () => {
   loadPage();
   setupEventListeners();
   setupContextEventListeners();
+
+  // Restore persisted chat messages
+  loadChatMessages();
+  restoreChatUI();
 
   // Export modal
   if (typeof initExportModal === 'function') {
@@ -174,19 +208,92 @@ function setupEventListeners() {
   const scenariosContainer = document.getElementById('scenariosContainer');
   if (scenariosContainer) {
     scenariosContainer.addEventListener('click', handleScenarioAction);
+
+    // Comment form submission (delegated)
+    scenariosContainer.addEventListener('submit', async (e) => {
+      const form = e.target.closest('.comment-form');
+      if (!form) return;
+      e.preventDefault();
+
+      const testId = form.dataset.testId;
+      const authorInput = form.querySelector('.comment-author-input');
+      const contentInput = form.querySelector('.comment-content-input');
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const author = authorInput.value.trim();
+      const content = contentInput.value.trim();
+
+      if (!author || !content) return;
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Odosielam...';
+
+      try {
+        const response = await fetch(`/api/pages/${pageId}/tests/${testId}/comments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ author, content }),
+        });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || 'Nepodarilo sa pridať komentár');
+        }
+
+        const comment = await response.json();
+
+        // Update local state
+        const scenario = allScenarios.find(s => s.test_id === testId);
+        if (scenario) {
+          if (!scenario.comments) scenario.comments = [];
+          scenario.comments.push(comment);
+        }
+
+        // Append to thread without re-rendering the whole page
+        const thread = form.parentElement.querySelector('.comments-thread');
+        if (thread) {
+          const div = document.createElement('div');
+          div.className = 'comment-item';
+          div.innerHTML = `
+            <div class="comment-header">
+              <strong class="comment-author">${escapeHtml(comment.author)}</strong>
+              <time class="comment-time">${formatCommentDate(comment.created_at)}</time>
+            </div>
+            <p class="comment-content">${escapeHtml(comment.content)}</p>
+          `;
+          thread.appendChild(div);
+        }
+
+        // Update comment count
+        const h4 = form.parentElement.querySelector('h4');
+        if (h4 && scenario) {
+          h4.textContent = `Komentáre (${scenario.comments.length})`;
+        }
+
+        // Save author for reuse, clear content
+        localStorage.setItem('comment_author', author);
+        contentInput.value = '';
+      } catch (error) {
+        showToast(error.message, 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Odoslať';
+      }
+    });
   }
 }
 
 async function loadPage() {
+  document.getElementById('scenariosContainer').innerHTML = '<div class="loading-spinner"></div>';
+
   try {
     const response = await fetch(`/api/pages/${pageId}`);
     if (!response.ok) {
       if (response.status === 404) {
-        alert('Page not found');
+        showToast('Stránka nebola nájdená', 'error');
         window.location.href = '/projects';
         return;
       }
-      throw new Error('Failed to load page');
+      throw new Error('Nepodarilo sa načítať stránku');
     }
 
     const page = await response.json();
@@ -202,12 +309,12 @@ async function loadPage() {
     }
   } catch (error) {
     console.error('Error loading page:', error);
-    showError('Failed to load page');
+    showError('Nepodarilo sa načítať stránku');
   }
 }
 
 function renderPage(page) {
-  document.title = `${page.name} - Test Scenario Generator`;
+  document.title = `${page.name} - Generátor testovacích scenárov`;
   document.getElementById('breadcrumbName').textContent = page.name;
   document.getElementById('pageName').textContent = page.name;
 
@@ -257,7 +364,7 @@ async function loadSourceDocument() {
   try {
     const response = await fetch(`/api/pages/${pageId}/source-document`);
     if (!response.ok) {
-      console.warn('Failed to load source document');
+      console.warn('Nepodarilo sa načítať zdrojový dokument');
       return;
     }
 
@@ -367,13 +474,13 @@ function renderSourceDocument(data) {
 async function loadTests() {
   try {
     const response = await fetch(`/api/pages/${pageId}/tests`);
-    if (!response.ok) throw new Error('Failed to load tests');
+    if (!response.ok) throw new Error('Nepodarilo sa načítať testy');
 
     const data = await response.json();
     allScenarios = data.scenarios || [];
 
     // Update stats
-    document.getElementById('testCount').textContent = `${data.total || 0} test scenario${data.total !== 1 ? 's' : ''}`;
+    document.getElementById('testCount').textContent = `${data.total || 0} testovacích scenárov`;
     document.getElementById('totalScenarios').textContent = data.total || 0;
     document.getElementById('validatedScenarios').textContent = data.validated || 0;
     document.getElementById('needsReviewScenarios').textContent = data.needs_review || 0;
@@ -430,8 +537,8 @@ function renderTests(scenarios) {
   if (scenarios.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
-        <h3>No matching scenarios</h3>
-        <p>Try adjusting your filters</p>
+        <h3>Žiadne zodpovedajúce scenáre</h3>
+        <p>Skúste upraviť filtre</p>
       </div>
     `;
     return;
@@ -457,23 +564,23 @@ function renderTests(scenarios) {
       ${scenario.description ? `<p class="review-card-description">${escapeHtml(scenario.description)}</p>` : ''}
 
       <div class="section">
-        <h4>Preconditions</h4>
+        <h4>Predpoklady</h4>
         <ul class="preconditions-list">
           ${(scenario.preconditions || []).length > 0
             ? (scenario.preconditions || []).map(p => `<li>${escapeHtml(p)}</li>`).join('')
-            : '<li>None provided</li>'}
+            : '<li>Neuvedené</li>'}
         </ul>
       </div>
 
       <div class="section">
-        <h4>Test Steps</h4>
+        <h4>Testovacie kroky</h4>
         <table class="steps-table">
           <thead>
             <tr>
               <th>#</th>
-              <th>Action</th>
-              <th>Input</th>
-              <th>Expected Result</th>
+              <th>Akcia</th>
+              <th>Vstup</th>
+              <th>Očakávaný výsledok</th>
             </tr>
           </thead>
           <tbody>
@@ -484,38 +591,68 @@ function renderTests(scenarios) {
                 <td>${escapeHtml(step.input || '')}</td>
                 <td>${escapeHtml(step.expected_result || '')}</td>
               </tr>
-            `).join('') || '<tr><td colspan="4">No steps provided</td></tr>'}
+            `).join('') || '<tr><td colspan="4">Žiadne kroky</td></tr>'}
           </tbody>
         </table>
       </div>
 
       <div class="section">
-        <h4>Metadata</h4>
+        <h4>Metadáta</h4>
         <div class="meta">
-          <span>Folder: ${escapeHtml(scenario.test_repository_folder || 'N/A')}</span>
-          <span>Automation: ${escapeHtml(formatLabel(scenario.automation_status || 'N/A'))}</span>
+          <span>Priečinok: ${escapeHtml(scenario.test_repository_folder || 'N/A')}</span>
+          <span>Automatizácia: ${escapeHtml(formatLabel(scenario.automation_status || 'N/A'))}</span>
         </div>
       </div>
 
       ${scenario.validation_notes ? `
         <div class="section review-notes">
-          <h4>Validation Notes</h4>
+          <h4>Poznámky z validácie</h4>
           <p>${escapeHtml(scenario.validation_notes)}</p>
         </div>
       ` : ''}
 
       <div class="card-actions">
         ${scenario.validation_status === 'needs_review' ? `
-          <button class="primary" data-action="accept" data-test-id="${escapeHtml(scenario.test_id)}">Accept</button>
+          <button class="primary" data-action="accept" data-test-id="${escapeHtml(scenario.test_id)}">Prijať</button>
         ` : ''}
-        <button class="ghost" data-action="edit" data-test-id="${escapeHtml(scenario.test_id)}">Edit</button>
+        <button class="ghost" data-action="edit" data-test-id="${escapeHtml(scenario.test_id)}">Upraviť</button>
         ${scenario.validation_status !== 'dismissed' ? `
-          <button class="warn" data-action="dismiss" data-test-id="${escapeHtml(scenario.test_id)}">Dismiss</button>
+          <button class="warn" data-action="dismiss" data-test-id="${escapeHtml(scenario.test_id)}">Zamietnuť</button>
         ` : ''}
-        <button class="danger" data-action="delete" data-test-id="${escapeHtml(scenario.test_id)}">Delete</button>
+        <button class="danger" data-action="delete" data-test-id="${escapeHtml(scenario.test_id)}">Zmazať</button>
+      </div>
+
+      <div class="scenario-comments" data-test-id="${escapeHtml(scenario.test_id)}">
+        <h4>Komentáre ${(scenario.comments || []).length > 0 ? `(${scenario.comments.length})` : ''}</h4>
+        <div class="comments-thread">
+          ${(scenario.comments || []).map(c => `
+            <div class="comment-item">
+              <div class="comment-header">
+                <strong class="comment-author">${escapeHtml(c.author)}</strong>
+                <time class="comment-time">${formatCommentDate(c.created_at)}</time>
+              </div>
+              <p class="comment-content">${escapeHtml(c.content)}</p>
+            </div>
+          `).join('')}
+        </div>
+        <form class="comment-form" data-test-id="${escapeHtml(scenario.test_id)}">
+          <input type="text" placeholder="Meno" class="comment-author-input" maxlength="100" required>
+          <div class="comment-form-row">
+            <textarea placeholder="Pridať komentár..." class="comment-content-input" maxlength="2000" rows="2" required></textarea>
+            <button type="submit" class="ghost small">Odoslať</button>
+          </div>
+        </form>
       </div>
     </div>
   `).join('');
+
+  // Auto-fill saved author name
+  const savedAuthor = localStorage.getItem('comment_author');
+  if (savedAuthor) {
+    container.querySelectorAll('.comment-author-input').forEach(input => {
+      if (!input.value) input.value = savedAuthor;
+    });
+  }
 }
 
 async function handleScenarioAction(e) {
@@ -536,13 +673,13 @@ async function handleScenarioAction(e) {
       renderFilteredTests();
       updateStats();
     } else if (action === 'dismiss') {
-      if (!confirm('Dismiss this scenario? It will be hidden from validated list.')) return;
+      if (!await showConfirm('Zamietnuť tento scenár?')) return;
       await updateScenarioValidation(testId, 'dismissed', 'Dismissed via page review');
       scenario.validation_status = 'dismissed';
       renderFilteredTests();
       updateStats();
     } else if (action === 'delete') {
-      if (!confirm('Delete this scenario permanently? This cannot be undone.')) return;
+      if (!await showConfirm('Zmazať tento scenár natrvalo? Túto akciu nie je možné vrátiť.', 'Zmazať', 'Zrušiť', true)) return;
       await deleteScenario(testId);
       allScenarios = allScenarios.filter(s => s.test_id !== testId);
       renderFilteredTests();
@@ -551,7 +688,7 @@ async function handleScenarioAction(e) {
       openScenarioEditModal(scenario);
     }
   } catch (error) {
-    alert('Action failed: ' + error.message);
+    showToast('Akcia zlyhala: ' + error.message, 'error');
   }
 }
 
@@ -567,7 +704,7 @@ async function updateScenarioValidation(testId, status, notes) {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || error.message || 'Failed to update validation');
+    throw new Error(error.error || error.message || 'Nepodarilo sa aktualizovať validáciu');
   }
 }
 
@@ -578,7 +715,7 @@ async function deleteScenario(testId) {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || error.message || 'Failed to delete scenario');
+    throw new Error(error.error || error.message || 'Nepodarilo sa zmazať scenár');
   }
 }
 
@@ -587,7 +724,7 @@ function updateStats() {
   const validated = allScenarios.filter(s => s.validation_status === 'validated').length;
   const needsReview = allScenarios.filter(s => s.validation_status === 'needs_review').length;
 
-  document.getElementById('testCount').textContent = `${total} test scenario${total !== 1 ? 's' : ''}`;
+  document.getElementById('testCount').textContent = `${total} testovacích scenárov`;
   document.getElementById('totalScenarios').textContent = total;
   document.getElementById('validatedScenarios').textContent = validated;
   document.getElementById('needsReviewScenarios').textContent = needsReview;
@@ -731,7 +868,7 @@ async function handleEditScenario(e) {
 
   try {
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Saving...';
+    submitBtn.textContent = 'Ukladám...';
 
     const response = await fetch(`/api/pages/${pageId}/tests/${testId}`, {
       method: 'PATCH',
@@ -741,7 +878,7 @@ async function handleEditScenario(e) {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || error.message || 'Failed to save changes');
+      throw new Error(error.error || error.message || 'Nepodarilo sa uložiť zmeny');
     }
 
     // Update local state
@@ -753,7 +890,7 @@ async function handleEditScenario(e) {
     closeScenarioEditModal();
     renderFilteredTests();
   } catch (error) {
-    alert('Failed to save: ' + error.message);
+    showToast('Nepodarilo sa uložiť: ' + error.message, 'error');
   } finally {
     submitBtn.disabled = false;
     submitBtn.textContent = originalText;
@@ -763,7 +900,7 @@ async function handleEditScenario(e) {
 async function loadJobHistory() {
   try {
     const response = await fetch(`/api/pages/${pageId}/jobs`);
-    if (!response.ok) throw new Error('Failed to load job history');
+    if (!response.ok) throw new Error('Nepodarilo sa načítať históriu úloh');
 
     const data = await response.json();
     renderJobHistory(data.jobs || []);
@@ -776,7 +913,7 @@ function renderJobHistory(jobs) {
   const container = document.getElementById('jobHistoryContainer');
 
   if (jobs.length === 0) {
-    container.innerHTML = '<p class="muted">No generation history yet</p>';
+    container.innerHTML = '<p class="muted">Zatiaľ žiadna história generovania</p>';
     return;
   }
 
@@ -784,11 +921,11 @@ function renderJobHistory(jobs) {
     <table class="scenarios-table">
       <thead>
         <tr>
-          <th>Job ID</th>
-          <th>Status</th>
-          <th>Scenarios</th>
-          <th>Created</th>
-          <th>Completed</th>
+          <th>ID úlohy</th>
+          <th>Stav</th>
+          <th>Scenáre</th>
+          <th>Vytvorené</th>
+          <th>Dokončené</th>
         </tr>
       </thead>
       <tbody>
@@ -824,7 +961,7 @@ async function handleEditPage(e) {
 
   try {
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Saving...';
+    submitBtn.textContent = 'Ukladám...';
 
     const name = document.getElementById('editPageName').value.trim();
     const confluenceLink = document.getElementById('editConfluenceLink').value.trim();
@@ -837,7 +974,7 @@ async function handleEditPage(e) {
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to update page');
+      throw new Error(error.error || 'Nepodarilo sa aktualizovať stránku');
     }
 
     closeEditModal();
@@ -845,7 +982,7 @@ async function handleEditPage(e) {
     if (window.sidebarRefresh) window.sidebarRefresh();
   } catch (error) {
     console.error('Error updating page:', error);
-    alert('Failed to update page: ' + error.message);
+    showToast('Nepodarilo sa aktualizovať stránku: ' + error.message, 'error');
   } finally {
     submitBtn.disabled = false;
     submitBtn.textContent = originalText;
@@ -853,7 +990,7 @@ async function handleEditPage(e) {
 }
 
 async function handleDeletePage() {
-  if (!confirm(`Are you sure you want to delete "${currentPage.name}"?\n\nThis action cannot be undone.`)) {
+  if (!await showConfirm(`Naozaj chcete zmazať "${currentPage.name}"?\n\nTúto akciu nie je možné vrátiť.`, 'Zmazať', 'Zrušiť', true)) {
     return;
   }
 
@@ -864,24 +1001,24 @@ async function handleDeletePage() {
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to delete page');
+      throw new Error(error.error || 'Nepodarilo sa zmazať stránku');
     }
 
     window.location.href = `/component/${currentPage.component_id}`;
   } catch (error) {
     console.error('Error deleting page:', error);
-    alert('Failed to delete page: ' + error.message);
+    showToast('Nepodarilo sa zmazať stránku: ' + error.message, 'error');
   }
 }
 
 async function handleClearAllTests() {
   const testCount = allScenarios.length;
   if (testCount === 0) {
-    alert('No tests to clear.');
+    showToast('Žiadne testy na vymazanie.', 'warning');
     return;
   }
 
-  if (!confirm(`Are you sure you want to delete all ${testCount} test scenarios?\n\nThis action cannot be undone.`)) {
+  if (!await showConfirm(`Naozaj chcete vymazať všetky ${testCount} testovacie scenáre?\n\nTúto akciu nie je možné vrátiť.`, 'Zmazať', 'Zrušiť', true)) {
     return;
   }
 
@@ -890,7 +1027,7 @@ async function handleClearAllTests() {
 
   try {
     btn.disabled = true;
-    btn.textContent = 'Clearing...';
+    btn.textContent = 'Mažem...';
 
     const response = await fetch(`/api/pages/${pageId}/tests`, {
       method: 'DELETE',
@@ -898,17 +1035,17 @@ async function handleClearAllTests() {
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to clear tests');
+      throw new Error(error.error || 'Nepodarilo sa vymazať testy');
     }
 
     const result = await response.json();
     allScenarios = [];
     renderFilteredTests();
     updateStats();
-    alert(`Successfully deleted ${result.deleted_count} test scenarios.`);
+    showToast(`Úspešne vymazaných ${result.deleted_count} testovacích scenárov.`, 'success');
   } catch (error) {
     console.error('Error clearing tests:', error);
-    alert('Failed to clear tests: ' + error.message);
+    showToast('Nepodarilo sa vymazať testy: ' + error.message, 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = originalText;
@@ -926,7 +1063,7 @@ async function handleGenerateTests() {
 
   try {
     btn.disabled = true;
-    btn.textContent = 'Starting...';
+    btn.textContent = 'Spúšťam...';
 
     const response = await fetch(`/api/pages/${pageId}/generate`, {
       method: 'POST',
@@ -936,15 +1073,16 @@ async function handleGenerateTests() {
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to start generation');
+      throw new Error(error.error || 'Nepodarilo sa spustiť generovanie');
     }
 
     const result = await response.json();
-    showGenerationStatus('processing', 'Test generation started...');
+    showGenerationStatus('processing', 'Generovanie testov spustené...');
+    if (window.trackJob) window.trackJob(result.job_id, currentPage ? currentPage.name : 'Test generovanie');
     startPolling(result.job_id);
   } catch (error) {
     console.error('Error starting generation:', error);
-    alert('Failed to start generation: ' + error.message);
+    showToast('Nepodarilo sa spustiť generovanie: ' + error.message, 'error');
     btn.disabled = false;
     btn.textContent = originalText;
   }
@@ -955,29 +1093,31 @@ function startPolling(jobId) {
 
   const btn = document.getElementById('generateTestsBtn');
   btn.disabled = true;
-  btn.textContent = 'Generating...';
+  btn.textContent = 'Generujem...';
 
   pollingInterval = setInterval(async () => {
     try {
       const response = await fetch(`/api/jobs/${jobId}`);
-      if (!response.ok) throw new Error('Failed to check job status');
+      if (!response.ok) throw new Error('Nepodarilo sa skontrolovať stav úlohy');
 
       const job = await response.json();
 
       if (job.status === 'completed') {
         stopPolling();
-        showGenerationStatus('success', 'Test generation completed!');
+        if (window.untrackJob) window.untrackJob(jobId);
+        showGenerationStatus('success', 'Generovanie testov dokončené!');
         loadTests();
         loadJobHistory();
         btn.disabled = false;
-        btn.textContent = 'Generate Tests';
+        btn.textContent = 'Generovať testy';
       } else if (job.status === 'failed') {
         stopPolling();
-        showGenerationStatus('error', `Generation failed: ${job.error || 'Unknown error'}`);
+        if (window.untrackJob) window.untrackJob(jobId);
+        showGenerationStatus('error', `Generovanie zlyhalo: ${job.error || 'Neznáma chyba'}`);
         btn.disabled = false;
-        btn.textContent = 'Generate Tests';
+        btn.textContent = 'Generovať testy';
       } else {
-        showGenerationStatus('loading', 'Test generation in progress...');
+        showGenerationStatus('loading', 'Generovanie testov prebieha...');
       }
     } catch (error) {
       console.error('Error polling job status:', error);
@@ -1014,21 +1154,28 @@ function formatDateTime(dateString) {
 }
 
 function formatLabel(value) {
-  if (!value) return 'Unknown';
+  if (!value) return 'Neznáme';
   const text = String(value).replace(/_/g, ' ');
   return text.replace(/\b\w/g, match => match.toUpperCase());
 }
 
 function formatShortId(value, length = 8) {
-  if (!value) return 'Unknown';
+  if (!value) return 'Neznáme';
   const text = String(value);
   if (text.length <= length) return text;
   return `${text.slice(0, length)}...`;
 }
 
+function formatCommentDate(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return String(value);
+  return d.toLocaleDateString('sk-SK') + ' ' + d.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' });
+}
+
 function updateChatContext(totalScenarios) {
   if (!chatElements.context) return;
-  chatElements.context.textContent = `Using ${totalScenarios} scenario${totalScenarios === 1 ? '' : 's'}`;
+  chatElements.context.textContent = `Používa ${totalScenarios} scenárov`;
 }
 
 function appendChatMessage(role, content) {
@@ -1054,7 +1201,7 @@ function setChatPending(isPending) {
   chatElements.input.disabled = isPending;
 
   if (isPending) {
-    chatState.pendingEl = appendChatMessage('assistant pending', 'Thinking...');
+    chatState.pendingEl = appendChatMessage('assistant pending', 'Premýšľam...');
   } else if (chatState.pendingEl) {
     chatState.pendingEl.remove();
     chatState.pendingEl = null;
@@ -1064,6 +1211,7 @@ function setChatPending(isPending) {
 function resetChat() {
   if (!chatElements.log) return;
   chatState.messages = [];
+  saveChatMessages();
   chatElements.log.innerHTML = '';
   if (chatElements.empty) {
     chatElements.empty.style.display = 'block';
@@ -1083,6 +1231,7 @@ async function handleChatSubmit(event) {
 
   chatElements.input.value = '';
   chatState.messages.push({ role: 'user', content: message });
+  saveChatMessages();
   appendChatMessage('user', message);
   setChatPending(true);
 
@@ -1098,11 +1247,12 @@ async function handleChatSubmit(event) {
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(data.error || data.message || 'Chat request failed');
+      throw new Error(data.error || data.message || 'Požiadavka na chat zlyhala');
     }
 
-    const reply = data.reply || 'No response from assistant.';
+    const reply = data.reply || 'Žiadna odpoveď od asistenta.';
     chatState.messages.push({ role: 'assistant', content: reply });
+    saveChatMessages();
     setChatPending(false);
     appendChatMessage('assistant', reply);
 
@@ -1111,7 +1261,7 @@ async function handleChatSubmit(event) {
     }
   } catch (error) {
     setChatPending(false);
-    appendChatMessage('assistant', error.message || 'Chat request failed.');
+    appendChatMessage('assistant', error.message || 'Požiadavka na chat zlyhala.');
   }
 }
 
@@ -1119,9 +1269,9 @@ function showError(message) {
   const container = document.getElementById('scenariosContainer');
   container.innerHTML = `
     <div class="empty-state">
-      <h3>Error</h3>
+      <h3>Chyba</h3>
       <p>${escapeHtml(message)}</p>
-      <button type="button" class="primary" onclick="loadPage()">Retry</button>
+      <button type="button" class="primary" onclick="loadPage()">Skúsiť znova</button>
     </div>
   `;
 }
@@ -1186,7 +1336,7 @@ async function loadSupplementaryContext() {
   try {
     const response = await fetch(`/api/pages/${pageId}/context`);
     if (!response.ok) {
-      console.warn('Failed to load supplementary context');
+      console.warn('Nepodarilo sa načítať doplnkový kontext');
       return;
     }
 
@@ -1243,7 +1393,7 @@ async function handleSaveContext() {
     if (selectedType === 'text') {
       const text = document.getElementById('contextText').value.trim();
       if (!text) {
-        alert('Zadajte text kontextu');
+        showToast('Zadajte text kontextu', 'warning');
         return;
       }
 
@@ -1256,7 +1406,7 @@ async function handleSaveContext() {
       const fileInput = document.getElementById('contextFile');
       const file = fileInput.files[0];
       if (!file) {
-        alert('Vyberte súbor');
+        showToast('Vyberte súbor', 'warning');
         return;
       }
 
@@ -1270,7 +1420,7 @@ async function handleSaveContext() {
     } else if (selectedType === 'link') {
       const link = document.getElementById('contextLink').value.trim();
       if (!link) {
-        alert('Zadajte Confluence link');
+        showToast('Zadajte Confluence link', 'warning');
         return;
       }
 
@@ -1295,9 +1445,9 @@ async function handleSaveContext() {
     if (toggleBtn) toggleBtn.textContent = '+ Pridať kontext';
     resetContextForm();
 
-    alert('Kontext úspešne uložený');
+    showToast('Kontext úspešne uložený', 'success');
   } catch (error) {
-    alert('Chyba pri ukladaní: ' + error.message);
+    showToast('Chyba pri ukladaní: ' + error.message, 'error');
   } finally {
     saveBtn.disabled = false;
     saveBtn.textContent = originalText;
@@ -1305,7 +1455,7 @@ async function handleSaveContext() {
 }
 
 async function handleClearContext() {
-  if (!confirm('Naozaj chcete odstrániť dodatočný kontext? Táto akcia sa nedá vrátiť späť.')) {
+  if (!await showConfirm('Naozaj chcete odstrániť dodatočný kontext? Táto akcia sa nedá vrátiť späť.', 'Zmazať', 'Zrušiť', true)) {
     return;
   }
 
@@ -1326,9 +1476,9 @@ async function handleClearContext() {
     }
 
     document.getElementById('currentContextDisplay').style.display = 'none';
-    alert('Kontext úspešne odstránený');
+    showToast('Kontext úspešne odstránený', 'success');
   } catch (error) {
-    alert('Chyba pri odstraňovaní: ' + error.message);
+    showToast('Chyba pri odstraňovaní: ' + error.message, 'error');
   } finally {
     clearBtn.disabled = false;
     clearBtn.textContent = originalText;

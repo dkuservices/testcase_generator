@@ -3,6 +3,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { readJSON, listFiles, writeJSON, fileExists } from '../../storage/json-storage';
 import { Job } from '../../models/job';
 import { ApiError } from '../middleware/error-handler';
+import { generateUUID } from '../../utils/uuid-generator';
 import logger from '../../utils/logger';
 
 const router = Router();
@@ -137,6 +138,94 @@ router.delete('/clean', async (_req: Request, res: Response, next: NextFunction)
   }
 });
 
+// Bulk accept/dismiss scenarios
+router.post('/bulk', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  const { action, test_ids } = req.body || {};
+
+  if (!action || !['accept', 'dismiss'].includes(action)) {
+    res.status(400).json({ error: 'Invalid action. Must be "accept" or "dismiss".' });
+    return;
+  }
+
+  if (!Array.isArray(test_ids) || test_ids.length === 0) {
+    res.status(400).json({ error: 'test_ids must be a non-empty array of {job_id, test_id}.' });
+    return;
+  }
+
+  const newStatus = action === 'accept' ? 'validated' : 'dismissed';
+
+  try {
+    const jobsDir = path.join(process.cwd(), 'data', 'jobs');
+
+    // Group by job_id to minimize file reads
+    const grouped = new Map<string, string[]>();
+    for (const item of test_ids) {
+      if (!item.job_id || !item.test_id) continue;
+      const list = grouped.get(item.job_id) || [];
+      list.push(item.test_id);
+      grouped.set(item.job_id, list);
+    }
+
+    let updated = 0;
+    let failed = 0;
+
+    for (const [jobId, testIds] of grouped) {
+      const jobPath = path.join(jobsDir, `${jobId}.json`);
+      if (!(await fileExists(jobPath))) {
+        failed += testIds.length;
+        continue;
+      }
+
+      let job: Job;
+      try {
+        job = await readJSON<Job>(jobPath);
+      } catch {
+        failed += testIds.length;
+        continue;
+      }
+
+      if (!job.results?.scenarios) {
+        failed += testIds.length;
+        continue;
+      }
+
+      let jobModified = false;
+      for (const testId of testIds) {
+        const scenario = job.results.scenarios.find(s => s.test_id === testId);
+        if (scenario) {
+          scenario.validation_status = newStatus;
+          if (action === 'dismiss') {
+            scenario.validation_notes = (scenario.validation_notes || '') +
+              (scenario.validation_notes ? '; ' : '') + 'Bulk dismissed via review UI';
+          }
+          updated++;
+          jobModified = true;
+        } else {
+          failed++;
+        }
+      }
+
+      if (jobModified) {
+        // Recalculate counts
+        job.results.validated_scenarios = job.results.scenarios.filter(
+          s => s.validation_status === 'validated'
+        ).length;
+        job.results.needs_review_scenarios = job.results.scenarios.filter(
+          s => s.validation_status === 'needs_review'
+        ).length;
+        job.results.total_scenarios = job.results.scenarios.length;
+        await writeJSON(jobPath, job);
+      }
+    }
+
+    logger.info('Bulk review action', { action, updated, failed });
+
+    res.json({ updated, failed });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.patch('/:jobId/:testId', async (req: Request, res: Response, next: NextFunction) => {
   const { jobId, testId } = req.params;
   const updates = req.body || {};
@@ -229,6 +318,70 @@ router.patch('/:jobId/:testId', async (req: Request, res: Response, next: NextFu
       message: 'Scenario updated',
       test_id: testId,
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Add a comment to a specific scenario
+router.post('/:jobId/:testId/comments', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  const { jobId, testId } = req.params;
+  const { author, content } = req.body || {};
+
+  if (!author || typeof author !== 'string' || !author.trim()) {
+    res.status(400).json({ error: 'author is required' });
+    return;
+  }
+
+  if (!content || typeof content !== 'string' || !content.trim()) {
+    res.status(400).json({ error: 'content is required' });
+    return;
+  }
+
+  if (content.length > 2000) {
+    res.status(400).json({ error: 'content must not exceed 2000 characters' });
+    return;
+  }
+
+  try {
+    const jobsDir = path.join(process.cwd(), 'data', 'jobs');
+    const jobPath = path.join(jobsDir, `${jobId}.json`);
+    if (!(await fileExists(jobPath))) {
+      throw new ApiError(`Job not found: ${jobId}`, 404);
+    }
+
+    const job = await readJSON<Job>(jobPath);
+
+    if (!job.results?.scenarios) {
+      throw new ApiError('Job has no scenarios', 400);
+    }
+
+    const scenario = job.results.scenarios.find(s => s.test_id === testId);
+    if (!scenario) {
+      throw new ApiError(`Test scenario not found: ${testId}`, 404);
+    }
+
+    if (!scenario.comments) {
+      scenario.comments = [];
+    }
+
+    const comment = {
+      id: generateUUID(),
+      author: author.trim(),
+      content: content.trim(),
+      created_at: new Date().toISOString(),
+    };
+
+    scenario.comments.push(comment);
+    await writeJSON(jobPath, job);
+
+    logger.info('Comment added to scenario', {
+      job_id: jobId,
+      test_id: testId,
+      comment_id: comment.id,
+    });
+
+    res.status(201).json(comment);
   } catch (error) {
     next(error);
   }

@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="sk">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Component - Test Scenario Generator</title>
+    <title>Komponent - Generátor testovacích scenárov</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -11,7 +11,10 @@
     <link rel="stylesheet" href="/ui/hierarchy.css">
     <link rel="stylesheet" href="/ui/review.css">
     <link rel="stylesheet" href="/ui/documents.css">
+    <link rel="stylesheet" href="/ui/toast.css">
+    <script defer src="/ui/toast.js"></script>
     <script defer src="/ui/sidebar.js"></script>
+    <script defer src="/ui/job-tracker.js"></script>
     <script defer src="/ui/export-helper.js"></script>
     <script defer src="/ui/component.js"></script>
   </head>
@@ -21,19 +24,21 @@
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
           <h2>Test Generator</h2>
-          <p>Project hierarchy</p>
+          <p>Hierarchia projektu</p>
         </div>
         <nav class="sidebar-nav" id="sidebarTree"></nav>
         <div class="sidebar-actions">
+          <a href="/dashboard" class="sidebar-link">
+            <span>&#9776;</span> Dashboard
+          </a>
           <a href="/generate" class="sidebar-link">
-            <span>+</span> Quick Generate
+            <span>+</span> Rýchle generovanie
           </a>
           <a href="/review" class="sidebar-link">
-            <span>!</span> Review Desk
+            <span>!</span> Kontrola scenárov
           </a>
           <a href="/jobs" class="sidebar-link">
-            <span>&#9881;</span> Joby
-          </a>
+            <span>&#9881;</span> Joby <span class="sidebar-badge" id="jobsBadge" style="display:none">0</span></a>
           <a href="/documents" class="sidebar-link">
             <span>&#128196;</span> Dokumenty
           </a>
@@ -43,15 +48,15 @@
       <!-- Main Content -->
       <main class="main-content">
         <div class="breadcrumb">
-          <a href="/projects">Projects</a>
+          <a href="/projects">Projekty</a>
           <span>/</span>
-          <a href="#" id="breadcrumbProject">Project</a>
+          <a href="#" id="breadcrumbProject">Projekt</a>
           <span>/</span>
-          <span class="current" id="breadcrumbName">Loading...</span>
+          <span class="current" id="breadcrumbName">Načítavam...</span>
         </div>
 
         <div class="page-header">
-          <h1 id="componentName">Loading...</h1>
+          <h1 id="componentName">Načítavam...</h1>
           <p id="componentDescription"></p>
         </div>
 
@@ -60,26 +65,26 @@
             <!-- Tabs will go here -->
           </div>
           <div class="action-bar-right">
-            <button type="button" class="ghost" id="editComponentBtn">Edit</button>
-            <button type="button" class="ghost danger" id="deleteComponentBtn">Delete</button>
+            <button type="button" class="ghost" id="editComponentBtn">Upraviť</button>
+            <button type="button" class="ghost danger" id="deleteComponentBtn">Zmazať</button>
           </div>
         </div>
 
         <!-- Tabs -->
         <div class="tabs">
-          <button type="button" class="tab-btn active" data-tab="pages">Pages</button>
-          <button type="button" class="tab-btn" data-tab="integration">Integration Tests</button>
-          <button type="button" class="tab-btn" data-tab="dependencies">Dependencies</button>
+          <button type="button" class="tab-btn active" data-tab="pages">Stránky</button>
+          <button type="button" class="tab-btn" data-tab="integration">Integračné testy</button>
+          <button type="button" class="tab-btn" data-tab="dependencies">Závislosti</button>
         </div>
 
         <!-- Pages Tab -->
         <div class="tab-content active" id="pagesTab">
           <div class="action-bar">
             <div class="action-bar-left">
-              <span id="pageCount">0 pages</span>
+              <span id="pageCount">0 stránok</span>
             </div>
             <div class="action-bar-right">
-              <button type="button" class="primary" id="addPageBtn">Add Page</button>
+              <button type="button" class="primary" id="addPageBtn">Pridať stránku</button>
             </div>
           </div>
 
@@ -88,9 +93,9 @@
           </div>
 
           <div class="empty-state" id="pagesEmptyState" style="display: none;">
-            <h3>No pages yet</h3>
-            <p>Add Confluence page links to generate test scenarios</p>
-            <button type="button" class="primary" id="addPageEmptyBtn">Add Page</button>
+            <h3>Zatiaľ žiadne stránky</h3>
+            <p>Pridajte odkazy na Confluence stránky na generovanie testovacích scenárov</p>
+            <button type="button" class="primary" id="addPageEmptyBtn">Pridať stránku</button>
           </div>
         </div>
 
@@ -98,32 +103,32 @@
         <div class="tab-content" id="integrationTab">
           <div class="action-bar">
             <div class="action-bar-left">
-              <span id="integrationTestCount">0 integration tests</span>
+              <span id="integrationTestCount">0 integračných testov</span>
             </div>
             <div class="action-bar-right">
               <label class="field-inline" for="maxIntegrationTestsInput">
-                <span>Max tests</span>
+                <span>Max testov:</span>
                 <input type="number" id="maxIntegrationTestsInput" min="1" max="20" value="6">
               </label>
               <button type="button" class="ghost" id="exportBtn">Export</button>
-              <button type="button" class="ghost" id="generateAllBtn">Generuj všetko</button>
-              <button type="button" class="warn" id="clearAllIntegrationBtn">Clear All Tests</button>
-              <button type="button" class="primary" id="generateIntegrationBtn">Generate Integration Tests</button>
+              <button type="button" class="ghost" id="generateAllBtn">Generovať všetko</button>
+              <button type="button" class="warn" id="clearAllIntegrationBtn">Vymazať všetky testy</button>
+              <button type="button" class="primary" id="generateIntegrationBtn">Generovať integračné testy</button>
             </div>
           </div>
 
           <div class="stats-row" id="integrationStatsRow">
             <div class="stat-box">
               <div class="stat-value" id="totalIntegrationScenarios">0</div>
-              <div class="stat-label">Total Scenarios</div>
+              <div class="stat-label">Celkom scenárov</div>
             </div>
             <div class="stat-box">
               <div class="stat-value" id="validatedIntegrationScenarios">0</div>
-              <div class="stat-label">Validated</div>
+              <div class="stat-label">Validovaných</div>
             </div>
             <div class="stat-box">
               <div class="stat-value" id="needsReviewIntegrationScenarios">0</div>
-              <div class="stat-label">Needs Review</div>
+              <div class="stat-label">Na kontrolu</div>
             </div>
           </div>
 
@@ -132,29 +137,29 @@
             <label class="control">
               <span>Status</span>
               <select id="integrationStatusFilter">
-                <option value="all">All scenarios</option>
-                <option value="validated">Validated only</option>
-                <option value="needs_review">Needs review only</option>
+                <option value="all">Všetky scenáre</option>
+                <option value="validated">Iba validované</option>
+                <option value="needs_review">Iba na kontrolu</option>
               </select>
             </label>
             <label class="control">
-              <span>Classification</span>
+              <span>Klasifikácia</span>
               <select id="integrationClassificationFilter">
-                <option value="all">All types</option>
+                <option value="all">Všetky typy</option>
                 <option value="happy_path">Happy path</option>
                 <option value="negative">Negative</option>
                 <option value="edge_case">Edge case</option>
               </select>
             </label>
             <label class="control grow">
-              <span>Search</span>
-              <input id="integrationSearchInput" type="search" placeholder="Filter by test name or description...">
+              <span>Hľadanie</span>
+              <input id="integrationSearchInput" type="search" placeholder="Filtrovať podľa názvu alebo popisu testu...">
             </label>
           </div>
 
           <!-- Generation Status -->
           <div class="status" id="integrationGenerationStatus" style="display: none;">
-            <div class="status-line" id="integrationGenerationStatusMessage">Generating tests...</div>
+            <div class="status-line" id="integrationGenerationStatusMessage">Generujem testy ...</div>
             <div class="status-meta" id="integrationGenerationStatusMeta"></div>
           </div>
 
@@ -163,35 +168,35 @@
           </div>
 
           <div class="empty-state" id="integrationEmptyState" style="display: none;">
-            <h3>No integration tests yet</h3>
-            <p>Generate integration tests to create component-level test scenarios that span multiple pages</p>
-            <button type="button" class="primary" id="generateIntegrationEmptyBtn">Generate Integration Tests</button>
+            <h3>Zatiaľ žiadne integračné testy</h3>
+            <p>Vygenerujte integračné testy na vytvorenie testovacích scenárov na úrovni komponentu, ktoré pokrývajú viaceré stránky</p>
+            <button type="button" class="primary" id="generateIntegrationEmptyBtn">Generovať integračné testy</button>
           </div>
 
           <!-- Job History -->
           <div id="integrationJobHistorySection" class="section-spaced">
-            <h3>Generation History</h3>
+            <h3>História generovania</h3>
             <div id="integrationJobHistoryContainer"></div>
           </div>
 
           <section class="chat-panel" id="chatPanel">
             <header class="chat-header">
               <div>
-                <h3>AI Refactor Chat</h3>
-                <p class="muted" id="chatContext">Using 0 scenarios</p>
+                <h3>AI Refaktor Chat</h3>
+                <p class="muted" id="chatContext">Používa 0 scenárov</p>
               </div>
-              <button type="button" class="ghost" id="chatClearBtn">Clear</button>
+              <button type="button" class="ghost" id="chatClearBtn">Vyčistiť</button>
             </header>
             <div class="chat-log" id="chatLog">
-              <div class="chat-empty" id="chatEmpty">Ask about the integration tests to get refactor ideas.</div>
+              <div class="chat-empty" id="chatEmpty">Opýtajte sa na integračné testy a získajte nápady na refaktoring.</div>
             </div>
             <form class="chat-form" id="chatForm">
               <label class="field">
-                <span>Your message</span>
-                <textarea id="chatInput" rows="3" placeholder="Ask for improvements, missing workflows, or refactors..."></textarea>
+                <span>Vaša správa</span>
+                <textarea id="chatInput" rows="3" placeholder="Opýtajte sa na vylepšenia, chýbajúce workflow alebo refaktoring..."></textarea>
               </label>
               <div class="chat-actions">
-                <button type="submit" class="primary" id="chatSendBtn">Send</button>
+                <button type="submit" class="primary" id="chatSendBtn">Odoslať</button>
               </div>
             </form>
           </section>
@@ -224,19 +229,19 @@
     <!-- Add Page Modal -->
     <div class="modal-overlay" id="addPageModal">
       <div class="modal">
-        <h2>Add Page</h2>
+        <h2>Pridať stránku</h2>
         <form id="addPageForm">
           <div class="form-group">
-            <label for="confluenceLink">Confluence Page Link</label>
+            <label for="confluenceLink">Odkaz na Confluence stránku</label>
             <input type="url" id="confluenceLink" name="confluence_link" required placeholder="https://domain.atlassian.net/wiki/spaces/SPACE/pages/123456/Page">
           </div>
           <div class="form-group">
-            <label for="pageName">Page Name (optional)</label>
-            <input type="text" id="pageName" name="name" placeholder="Leave blank to use Confluence page title">
+            <label for="pageName">Názov stránky (voliteľný)</label>
+            <input type="text" id="pageName" name="name" placeholder="Nechajte prázdne pre použitie názvu Confluence stránky">
           </div>
           <div class="modal-actions">
-            <button type="button" class="ghost" id="cancelAddPageBtn">Cancel</button>
-            <button type="submit" class="primary">Add Page</button>
+            <button type="button" class="ghost" id="cancelAddPageBtn">Zrušiť</button>
+            <button type="submit" class="primary">Pridať stránku</button>
           </div>
         </form>
       </div>
@@ -245,19 +250,19 @@
     <!-- Edit Component Modal -->
     <div class="modal-overlay" id="editModal">
       <div class="modal">
-        <h2>Edit Component</h2>
+        <h2>Upraviť komponent</h2>
         <form id="editComponentForm">
           <div class="form-group">
-            <label for="editComponentName">Component Name</label>
+            <label for="editComponentName">Názov komponentu</label>
             <input type="text" id="editComponentName" name="name" required>
           </div>
           <div class="form-group">
-            <label for="editComponentDescription">Description (optional)</label>
+            <label for="editComponentDescription">Popis (voliteľný)</label>
             <textarea id="editComponentDescription" name="description"></textarea>
           </div>
           <div class="modal-actions">
-            <button type="button" class="ghost" id="cancelEditBtn">Cancel</button>
-            <button type="submit" class="primary">Save Changes</button>
+            <button type="button" class="ghost" id="cancelEditBtn">Zrušiť</button>
+            <button type="submit" class="primary">Uložiť zmeny</button>
           </div>
         </form>
       </div>
@@ -266,36 +271,36 @@
     <!-- Export Modal -->
     <div class="modal-overlay" id="exportModal">
       <div class="modal">
-        <h2>Export scenarov</h2>
-        <button class="icon modal-close" id="closeExportModal" aria-label="Close">X</button>
+        <h2>Export scenárov</h2>
+        <button class="icon modal-close" id="closeExportModal" aria-label="Zavrieť">X</button>
         <form id="exportForm">
           <div class="export-section">
-            <h4>Zahrnut statusy</h4>
+            <h4>Zahrnuté statusy</h4>
             <div class="checkbox-group">
               <label class="checkbox-field">
                 <input type="checkbox" name="exportStatus" value="validated" checked>
-                <span>Validated</span>
+                <span>Validované</span>
               </label>
               <label class="checkbox-field">
                 <input type="checkbox" name="exportStatus" value="needs_review" checked>
-                <span>Needs Review</span>
+                <span>Na kontrolu</span>
               </label>
               <label class="checkbox-field">
                 <input type="checkbox" name="exportStatus" value="dismissed">
-                <span>Dismissed</span>
+                <span>Zamietnuté</span>
               </label>
             </div>
           </div>
           <div class="export-section">
-            <h4>Format</h4>
+            <h4>Formát</h4>
             <div class="export-format-options">
               <button type="button" class="ghost export-format-btn active" data-format="excel">Excel (.xlsx)</button>
               <button type="button" class="ghost export-format-btn" data-format="pdf">PDF</button>
             </div>
           </div>
           <div class="modal-actions">
-            <button type="button" class="ghost" id="cancelExport">Zrusit</button>
-            <button type="submit" class="primary" id="downloadExport">Stiahnut</button>
+            <button type="button" class="ghost" id="cancelExport">Zrušiť</button>
+            <button type="submit" class="primary" id="downloadExport">Stiahnuť</button>
           </div>
         </form>
       </div>
@@ -304,16 +309,16 @@
     <!-- Edit Scenario Modal -->
     <div class="modal-overlay" id="editScenarioModal">
       <div class="modal modal-lg">
-        <h2>Edit Integration Test</h2>
+        <h2>Upraviť integračný test</h2>
         <form id="editScenarioForm">
           <input type="hidden" id="editScenarioTestId">
           <div class="form-row">
             <div class="form-group flex-2">
-              <label for="editScenarioName">Test Name</label>
+              <label for="editScenarioName">Názov testu</label>
               <input type="text" id="editScenarioName" name="test_name" required>
             </div>
             <div class="form-group">
-              <label for="editScenarioPriority">Priority</label>
+              <label for="editScenarioPriority">Priorita</label>
               <select id="editScenarioPriority" name="priority">
                 <option value="critical">Critical</option>
                 <option value="high">High</option>
@@ -324,7 +329,7 @@
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label for="editScenarioType">Test Type</label>
+              <label for="editScenarioType">Typ testu</label>
               <select id="editScenarioType" name="test_type">
                 <option value="functional">Functional</option>
                 <option value="regression">Regression</option>
@@ -332,7 +337,7 @@
               </select>
             </div>
             <div class="form-group">
-              <label for="editScenarioClassification">Classification</label>
+              <label for="editScenarioClassification">Klasifikácia</label>
               <select id="editScenarioClassification" name="scenario_classification">
                 <option value="happy_path">Happy Path</option>
                 <option value="negative">Negative</option>
@@ -340,23 +345,23 @@
               </select>
             </div>
             <div class="form-group">
-              <label for="editScenarioAutomation">Automation Status</label>
+              <label for="editScenarioAutomation">Stav automatizácie</label>
               <select id="editScenarioAutomation" name="automation_status">
-                <option value="ready_for_automation">Ready for automation</option>
-                <option value="automation_not_needed">Automation not needed</option>
+                <option value="ready_for_automation">Pripravené na automatizáciu</option>
+                <option value="automation_not_needed">Automatizácia nie je potrebná</option>
               </select>
             </div>
           </div>
           <div class="form-group">
-            <label for="editScenarioDescription">Description</label>
-            <textarea id="editScenarioDescription" name="description" rows="2" placeholder="Ciel: ..."></textarea>
+            <label for="editScenarioDescription">Popis</label>
+            <textarea id="editScenarioDescription" name="description" rows="2" placeholder="Cieľ: ..."></textarea>
           </div>
           <div class="form-group">
-            <label for="editScenarioPreconditions">Preconditions (one per line)</label>
+            <label for="editScenarioPreconditions">Predpoklady (jeden na riadok)</label>
             <textarea id="editScenarioPreconditions" name="preconditions" rows="3"></textarea>
           </div>
           <div class="form-group">
-            <label>Kroky testu (Test Steps)</label>
+            <label>Kroky testu</label>
             <div id="editScenarioStepsContainer" class="steps-editor">
               <!-- Steps will be dynamically added here -->
             </div>
@@ -364,17 +369,17 @@
           </div>
           <div class="form-row">
             <div class="form-group flex-2">
-              <label for="editScenarioFolder">Test Repository Folder</label>
-              <input type="text" id="editScenarioFolder" name="test_repository_folder" placeholder="e.g., KIS2/Login">
+              <label for="editScenarioFolder">Priečinok testového repozitára</label>
+              <input type="text" id="editScenarioFolder" name="test_repository_folder" placeholder="napr. KIS2/Login">
             </div>
             <div class="form-group">
-              <label for="editScenarioNotes">Validation Notes</label>
-              <input type="text" id="editScenarioNotes" name="validation_notes" placeholder="Optional notes">
+              <label for="editScenarioNotes">Poznámky k validácii</label>
+              <input type="text" id="editScenarioNotes" name="validation_notes" placeholder="Voliteľné poznámky">
             </div>
           </div>
           <div class="modal-actions">
-            <button type="button" class="ghost" id="cancelScenarioEditBtn">Cancel</button>
-            <button type="submit" class="primary">Save Changes</button>
+            <button type="button" class="ghost" id="cancelScenarioEditBtn">Zrušiť</button>
+            <button type="submit" class="primary">Uložiť zmeny</button>
           </div>
         </form>
       </div>

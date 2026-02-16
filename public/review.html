@@ -1,59 +1,179 @@
 <!doctype html>
-<html lang="en">
+<html lang="sk">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Scenario Review</title>
+    <title>Kontrola scenárov</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/ui/generate.css">
+    <link rel="stylesheet" href="/ui/hierarchy.css">
     <link rel="stylesheet" href="/ui/review.css">
+    <link rel="stylesheet" href="/ui/toast.css">
+    <script defer src="/ui/toast.js"></script>
+    <script defer src="/ui/sidebar.js"></script>
+    <script defer src="/ui/job-tracker.js"></script>
     <script defer src="/ui/review.js"></script>
   </head>
   <body>
-    <main class="page">
-      <header class="header">
-        <div>
-          <p class="eyebrow">Needs Review</p>
-          <h1>Scenario Review Desk</h1>
-          <p class="subtitle">Accept, edit, or dismiss scenarios that need human verification.</p>
+    <div class="app-layout">
+      <!-- Sidebar -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <h2>Test Generator</h2>
+          <p>Hierarchia projektu</p>
         </div>
-        <div class="actions">
-          <button class="ghost" id="exportButton">Export</button>
-          <button class="danger" id="cleanButton">Clean All</button>
-          <button class="ghost" id="refreshButton">Refresh</button>
-          <div class="status-pill" id="countPill">0 scenarios</div>
+        <nav class="sidebar-nav" id="sidebarTree"></nav>
+        <div class="sidebar-actions">
+          <a href="/dashboard" class="sidebar-link">
+            <span>&#9776;</span> Dashboard
+          </a>
+          <a href="/generate" class="sidebar-link">
+            <span>+</span> Rýchle generovanie
+          </a>
+          <a href="/review" class="sidebar-link active">
+            <span>!</span> Kontrola scenárov
+          </a>
+          <a href="/jobs" class="sidebar-link">
+            <span>&#9881;</span> Joby <span class="sidebar-badge" id="jobsBadge" style="display:none">0</span></a>
+          <a href="/documents" class="sidebar-link">
+            <span>&#128196;</span> Dokumenty
+          </a>
         </div>
-      </header>
+      </aside>
 
-      <section class="controls">
-        <label class="control">
-          <span>Status</span>
-          <select id="statusFilter">
-            <option value="needs_review">Needs review</option>
-            <option value="all">Needs review + dismissed</option>
-          </select>
-        </label>
-        <label class="control grow">
-          <span>Search</span>
-          <input id="searchInput" type="search" placeholder="Filter by title, job id, or Jira id">
-        </label>
-      </section>
-
-      <section id="content" class="content">
-        <div class="empty" id="emptyState">
-          <h2>Nothing to review</h2>
-          <p>When scenarios are marked as needs review, they show up here.</p>
+      <!-- Main Content -->
+      <main class="main-content">
+        <div class="page-header">
+          <div class="page-header-row">
+            <div>
+              <p class="eyebrow">Vyžaduje kontrolu</p>
+              <h1>Kontrola scenárov</h1>
+              <p>Prijmite, upravte alebo zamietajte scenáre, ktoré vyžadujú ľudskú kontrolu.</p>
+            </div>
+            <div class="actions">
+              <button class="ghost" id="expandAllButton">Rozbaliť všetky</button>
+              <button class="ghost" id="collapseAllButton">Zbaliť všetky</button>
+              <button class="ghost" id="exportButton">Exportovať</button>
+              <button class="danger" id="cleanButton">Vyčistiť všetko</button>
+              <button class="ghost" id="refreshButton">Obnoviť</button>
+              <div class="status-pill" id="countPill">0 scenárov</div>
+            </div>
+          </div>
         </div>
-        <div class="grid" id="scenarioGrid"></div>
-      </section>
-    </main>
 
+        <!-- Stats Row -->
+        <div class="stats-row" id="reviewStatsRow">
+          <div class="stat-box">
+            <div class="stat-value" id="statTotal">0</div>
+            <div class="stat-label">Celkom</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="statCritical">0</div>
+            <div class="stat-label">Critical</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="statHigh">0</div>
+            <div class="stat-label">High</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="statMedium">0</div>
+            <div class="stat-label">Medium</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="statLow">0</div>
+            <div class="stat-label">Low</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="statHappyPath">0</div>
+            <div class="stat-label">Happy Path</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="statNegative">0</div>
+            <div class="stat-label">Negative</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="statEdgeCase">0</div>
+            <div class="stat-label">Edge Case</div>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <section class="controls">
+          <label class="control">
+            <span>Status</span>
+            <select id="statusFilter">
+              <option value="needs_review">Vyžaduje kontrolu</option>
+              <option value="all">Vyžaduje kontrolu + zamietnuté</option>
+            </select>
+          </label>
+          <label class="control">
+            <span>Priorita</span>
+            <select id="priorityFilter">
+              <option value="all">Všetky</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </label>
+          <label class="control">
+            <span>Klasifikácia</span>
+            <select id="classificationFilter">
+              <option value="all">Všetky</option>
+              <option value="happy_path">Happy Path</option>
+              <option value="negative">Negative</option>
+              <option value="edge_case">Edge Case</option>
+            </select>
+          </label>
+          <label class="control">
+            <span>Typ testu</span>
+            <select id="testTypeFilter">
+              <option value="all">Všetky</option>
+              <option value="functional">Functional</option>
+              <option value="regression">Regression</option>
+              <option value="smoke">Smoke</option>
+            </select>
+          </label>
+          <label class="control grow">
+            <span>Vyhľadávanie</span>
+            <input id="searchInput" type="search" placeholder="Filtrovať podľa názvu, job id alebo Jira id">
+          </label>
+        </section>
+
+        <!-- Bulk Action Bar -->
+        <section class="bulk-bar" id="bulkBar" style="display: none;">
+          <label class="checkbox-field">
+            <input type="checkbox" id="selectAllCheckbox">
+            <span id="bulkCount">0 vybraných</span>
+          </label>
+          <div class="bulk-actions">
+            <button type="button" class="primary" id="bulkAcceptBtn">Prijať vybrané</button>
+            <button type="button" class="warn" id="bulkDismissBtn">Zamietnuť vybrané</button>
+            <button type="button" class="ghost" id="bulkClearBtn">Zrušiť výber</button>
+          </div>
+        </section>
+
+        <!-- Content -->
+        <section id="content" class="content">
+          <div class="empty" id="emptyState">
+            <h2>Nič na kontrolu</h2>
+            <p>Keď sú scenáre označené na kontrolu, zobrazia sa tu.</p>
+          </div>
+          <div class="grid" id="scenarioGrid"></div>
+        </section>
+      </main>
+    </div>
+
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Otvoriť navigáciu" aria-expanded="false" aria-controls="sidebar">Menu</button>
+
+    <!-- Edit Modal -->
     <div class="modal hidden" id="editModal" role="dialog" aria-modal="true" aria-hidden="true">
       <div class="modal-card">
         <header>
-          <h2>Edit Scenario</h2>
+          <h2>Upraviť scenár</h2>
           <button class="icon" id="closeModal" aria-label="Close">X</button>
         </header>
         <form id="editForm">
@@ -61,11 +181,11 @@
           <input type="hidden" id="editTestId">
           <div class="form-grid">
             <label>
-              <span>Test name</span>
+              <span>Názov testu</span>
               <input id="editTestName" required>
             </label>
             <label>
-              <span>Test type</span>
+              <span>Typ testu</span>
               <select id="editTestType">
                 <option value="functional">Functional</option>
                 <option value="regression">Regression</option>
@@ -73,7 +193,7 @@
               </select>
             </label>
             <label>
-              <span>Classification</span>
+              <span>Klasifikácia</span>
               <select id="editClassification">
                 <option value="happy_path">Happy path</option>
                 <option value="negative">Negative</option>
@@ -81,7 +201,7 @@
               </select>
             </label>
             <label>
-              <span>Priority</span>
+              <span>Priorita</span>
               <select id="editPriority">
                 <option value="critical">Critical</option>
                 <option value="high">High</option>
@@ -90,41 +210,42 @@
               </select>
             </label>
             <label>
-              <span>Automation Status</span>
+              <span>Stav automatizácie</span>
               <select id="editAutomationStatus">
                 <option value="ready_for_automation">Ready for automation</option>
                 <option value="automation_not_needed">Automation not needed</option>
               </select>
             </label>
             <label>
-              <span>Test Repository Folder</span>
-              <input id="editRepositoryFolder" placeholder="e.g., KIS2/Login">
+              <span>Priečinok</span>
+              <input id="editRepositoryFolder" placeholder="napr. KIS2/Login">
             </label>
           </div>
           <label>
-            <span>Description (Objective)</span>
-            <textarea id="editDescription" rows="2" placeholder="Objective: ..."></textarea>
+            <span>Popis (Cieľ)</span>
+            <textarea id="editDescription" rows="2" placeholder="Cieľ: ..."></textarea>
           </label>
           <label>
-            <span>Preconditions (one per line)</span>
+            <span>Predpoklady (jeden na riadok)</span>
             <textarea id="editPreconditions" rows="3"></textarea>
           </label>
           <label>
-            <span>Test steps (format: action | input | expected_result - one step per line)</span>
-            <textarea id="editSteps" rows="8" placeholder="Navigate to page | URL: /login | Login screen is displayed"></textarea>
+            <span>Testovacie kroky (formát: akcia | vstup | očakávaný výsledok - jeden krok na riadok)</span>
+            <textarea id="editSteps" rows="8" placeholder="Navigovať na stránku | URL: /login | Zobrazí sa prihlasovacia obrazovka"></textarea>
           </label>
           <label>
-            <span>Notes</span>
-            <input id="editNotes" placeholder="Optional reviewer notes">
+            <span>Poznámky</span>
+            <input id="editNotes" placeholder="Voliteľné poznámky kontrolóra">
           </label>
           <div class="modal-actions">
-            <button type="button" class="ghost" id="cancelEdit">Cancel</button>
-            <button type="submit" class="primary">Save changes</button>
+            <button type="button" class="ghost" id="cancelEdit">Zrušiť</button>
+            <button type="submit" class="primary">Uložiť zmeny</button>
           </div>
         </form>
       </div>
     </div>
 
+    <!-- Export Modal -->
     <div class="modal hidden" id="exportModal" role="dialog" aria-modal="true" aria-hidden="true">
       <div class="modal-card">
         <header>
@@ -137,15 +258,15 @@
             <div class="checkbox-group">
               <label class="checkbox-field">
                 <input type="checkbox" name="exportStatus" value="validated" checked>
-                <span>Validated</span>
+                <span>Validované</span>
               </label>
               <label class="checkbox-field">
                 <input type="checkbox" name="exportStatus" value="needs_review" checked>
-                <span>Needs Review</span>
+                <span>Vyžaduje kontrolu</span>
               </label>
               <label class="checkbox-field">
                 <input type="checkbox" name="exportStatus" value="dismissed">
-                <span>Dismissed</span>
+                <span>Zamietnuté</span>
               </label>
             </div>
           </div>
@@ -165,4 +286,3 @@
     </div>
   </body>
 </html>
-

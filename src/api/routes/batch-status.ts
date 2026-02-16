@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { getBatchJob } from '../../storage/batch-job-store';
-import { getJob } from '../../storage/job-store';
+import { getJobsBulk } from '../../storage/job-store';
 
 const router = Router();
 
@@ -18,22 +18,21 @@ router.get('/:batchJobId', async (req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    // Get status of all sub-jobs
-    const subJobStatuses = await Promise.all(
-      batchJob.sub_jobs.map(async jobId => {
-        const job = await getJob(jobId);
-        return {
-          job_id: jobId,
-          status: job?.status || 'unknown',
-          link: job?.input.link || '',
-          results: job?.results ? {
-            total_scenarios: job.results.total_scenarios,
-            validated_scenarios: job.results.validated_scenarios,
-            needs_review_scenarios: job.results.needs_review_scenarios,
-          } : null,
-        };
-      })
-    );
+    // Get status of all sub-jobs in one bulk read
+    const jobsMap = await getJobsBulk(batchJob.sub_jobs);
+    const subJobStatuses = batchJob.sub_jobs.map(jobId => {
+      const job = jobsMap.get(jobId);
+      return {
+        job_id: jobId,
+        status: job?.status || 'unknown',
+        link: job?.input.link || '',
+        results: job?.results ? {
+          total_scenarios: job.results.total_scenarios,
+          validated_scenarios: job.results.validated_scenarios,
+          needs_review_scenarios: job.results.needs_review_scenarios,
+        } : null,
+      };
+    });
 
     const completedCount = subJobStatuses.filter(s => s.status === 'completed').length;
     const failedCount = subJobStatuses.filter(s => s.status === 'failed').length;

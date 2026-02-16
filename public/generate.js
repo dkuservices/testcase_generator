@@ -51,7 +51,7 @@ elements.modeButtons.forEach(btn => {
 
     currentMode = newMode;
     clearStatus();
-    setStatus('', 'Select mode and paste link(s) to begin.');
+    setStatus('', 'Vyberte režim a vložte odkaz(y) pre začatie.');
   });
 });
 
@@ -69,12 +69,12 @@ elements.form.addEventListener('submit', async event => {
 async function handleSingleSubmit() {
   const link = elements.linkInput.value.trim();
   if (!link) {
-    setStatus('error', 'Please provide a Confluence page link.');
+    setStatus('error', 'Zadajte odkaz na Confluence stránku.');
     return;
   }
 
   elements.submitButton.disabled = true;
-  setStatus('loading', 'Starting generation...');
+  setStatus('loading', 'Spúšťam generovanie...');
 
   try {
     const response = await fetch('/api/generate', {
@@ -86,7 +86,7 @@ async function handleSingleSubmit() {
     const payload = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      const message = payload.message || 'Failed to start generation.';
+      const message = payload.message || 'Nepodarilo sa spustiť generovanie.';
       setStatus('error', message);
       return;
     }
@@ -94,15 +94,15 @@ async function handleSingleSubmit() {
     const jobId = payload.job_id || payload.jobId;
     setStatus(
       'success',
-      'Generation started.',
+      'Generovanie spustené.',
       [
-        { label: jobId ? `Job: ${jobId}` : 'Job created' },
-        jobId ? { label: 'Track status', href: `/api/status/${jobId}` } : null,
-        { label: 'Open review desk', href: '/review' },
+        { label: jobId ? `Job: ${jobId}` : 'Job vytvorený' },
+        jobId ? { label: 'Sledovať stav', href: `/api/status/${jobId}` } : null,
+        { label: 'Otvoriť review desk', href: '/review' },
       ].filter(Boolean)
     );
   } catch (error) {
-    setStatus('error', error.message || 'Request failed.');
+    setStatus('error', error.message || 'Požiadavka zlyhala.');
   } finally {
     elements.submitButton.disabled = false;
   }
@@ -111,7 +111,7 @@ async function handleSingleSubmit() {
 async function handleBatchSubmit() {
   const linksText = elements.linksTextarea.value.trim();
   if (!linksText) {
-    setStatus('error', 'Please provide at least one Confluence link.');
+    setStatus('error', 'Zadajte aspoň jeden Confluence odkaz.');
     return;
   }
 
@@ -121,12 +121,12 @@ async function handleBatchSubmit() {
     .filter(l => l.length > 0);
 
   if (links.length < 2) {
-    setStatus('error', 'Batch mode requires at least 2 links.');
+    setStatus('error', 'Dávkový režim vyžaduje aspoň 2 odkazy.');
     return;
   }
 
   if (links.length > 20) {
-    setStatus('error', 'Batch mode supports maximum 20 links.');
+    setStatus('error', 'Dávkový režim podporuje maximálne 20 odkazov.');
     return;
   }
 
@@ -134,12 +134,12 @@ async function handleBatchSubmit() {
   const moduleTests = elements.moduleTestsCheckbox.checked;
 
   if (!pageTests && !moduleTests) {
-    setStatus('error', 'Select at least one generation option.');
+    setStatus('error', 'Vyberte aspoň jednu možnosť generovania.');
     return;
   }
 
   elements.submitButton.disabled = true;
-  setStatus('loading', `Starting batch generation for ${links.length} pages...`);
+  setStatus('loading', `Spúšťam dávkové generovanie pre ${links.length} stránok...`);
 
   try {
     const response = await fetch('/api/batch/generate', {
@@ -155,7 +155,7 @@ async function handleBatchSubmit() {
     const payload = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      const message = payload.error || payload.message || 'Failed to start batch generation.';
+      const message = payload.error || payload.message || 'Nepodarilo sa spustiť dávkové generovanie.';
       const details = payload.details ? `\n${payload.details.join(', ')}` : '';
       setStatus('error', message + details);
       return;
@@ -164,23 +164,26 @@ async function handleBatchSubmit() {
     const batchJobId = payload.batch_job_id;
     setStatus(
       'loading',
-      'Batch generation in progress...',
+      'Dávkové generovanie prebieha...',
       [
         { label: `Batch Job: ${batchJobId}` },
-        { label: `Processing ${links.length} pages` },
+        { label: `Spracovávam ${links.length} stránok` },
       ]
     );
 
     // Show progress bar
     elements.batchProgress.style.display = 'block';
     elements.progressFill.style.width = '0%';
-    elements.progressText.textContent = `0 / ${links.length} pages completed`;
+    elements.progressText.textContent = `0 / ${links.length} stránok dokončených`;
+
+    // Track globally for cross-page notifications
+    if (window.trackJob) window.trackJob(batchJobId, 'Dávkové generovanie');
 
     // Start polling
     startBatchPolling(batchJobId);
 
   } catch (error) {
-    setStatus('error', error.message || 'Request failed.');
+    setStatus('error', error.message || 'Požiadavka zlyhala.');
     elements.submitButton.disabled = false;
   }
 }
@@ -197,7 +200,7 @@ function startBatchPolling(batchJobId) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error('Failed to fetch batch status');
+        throw new Error('Nepodarilo sa získať stav dávky');
       }
 
       updateBatchProgress(data);
@@ -206,12 +209,13 @@ function startBatchPolling(batchJobId) {
       if (data.status === 'completed' || data.status === 'failed') {
         clearInterval(pollingInterval);
         pollingInterval = null;
+        if (window.untrackJob) window.untrackJob(batchJobId);
         elements.submitButton.disabled = false;
 
         if (data.status === 'completed') {
           displayBatchResults(data);
         } else {
-          setStatus('error', `Batch job failed: ${data.error || 'Unknown error'}`);
+          setStatus('error', `Dávkový job zlyhal: ${data.error || 'Neznáma chyba'}`);
         }
       }
 
@@ -228,10 +232,10 @@ function updateBatchProgress(data) {
 
   elements.progressFill.style.width = `${percentage}%`;
   elements.progressText.textContent =
-    `${progress.completed} / ${progress.total_pages} pages completed`;
+    `${progress.completed} / ${progress.total_pages} stránok dokončených`;
 
   if (progress.failed > 0) {
-    elements.progressText.textContent += ` (${progress.failed} failed)`;
+    elements.progressText.textContent += ` (${progress.failed} zlyhalo)`;
   }
 }
 
@@ -240,9 +244,9 @@ function displayBatchResults(data) {
 
   setStatus(
     'success',
-    `Batch generation completed!`,
+    `Dávkové generovanie dokončené!`,
     [
-      { label: `${progress.completed} pages processed` },
+      { label: `${progress.completed} stránok spracovaných` },
       { label: `Batch Job: ${data.batch_job_id}` },
     ]
   );
@@ -256,8 +260,8 @@ function displayBatchResults(data) {
                             subJob.status === 'failed' ? 'failed' : 'processing';
 
           const scenarioInfo = subJob.results
-            ? `${subJob.results.validated_scenarios} validated, ${subJob.results.needs_review_scenarios} needs review`
-            : 'No results';
+            ? `${subJob.results.validated_scenarios} validovaných, ${subJob.results.needs_review_scenarios} na kontrolu`
+            : 'Žiadne výsledky';
 
           return `
             <div class="page-result">
@@ -280,11 +284,11 @@ function displayBatchResults(data) {
     const aggResults = data.aggregation_results;
     const summaryHtml = `
       <div class="aggregation-summary">
-        <strong>Aggregation Results</strong>
-        <span>Total scenarios (deduplicated): ${aggResults.total_scenarios}</span>
-        <span>Duplicates removed: ${aggResults.deduplicated_count}</span>
-        <span>Module-level tests: ${aggResults.module_level_scenarios.length}</span>
-        <a href="/api/batch/status/${data.batch_job_id}">View full report</a>
+        <strong>Výsledky agregácie</strong>
+        <span>Celkový počet scenárov (deduplikovaných): ${aggResults.total_scenarios}</span>
+        <span>Odstránené duplikáty: ${aggResults.deduplicated_count}</span>
+        <span>Testy na úrovni modulov: ${aggResults.module_level_scenarios.length}</span>
+        <a href="/api/batch/status/${data.batch_job_id}">Zobraziť celú správu</a>
       </div>
     `;
     elements.statusMeta.innerHTML += summaryHtml;
@@ -309,7 +313,7 @@ elements.resetButton.addEventListener('click', () => {
 
   elements.batchProgress.style.display = 'none';
   elements.submitButton.disabled = false;
-  setStatus('', 'Paste link(s) to begin.');
+  setStatus('', 'Vložte odkaz(y) pre začatie.');
 });
 
 // Utility functions

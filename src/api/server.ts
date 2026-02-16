@@ -18,6 +18,7 @@ import componentsRoutes from './routes/components';
 import { createPagesRoute } from './routes/pages';
 import hierarchyRoutes from './routes/hierarchy';
 import chatRoutes from './routes/chat';
+import dashboardRoutes from './routes/dashboard';
 import { createDocumentsRoute } from './routes/documents';
 import { errorHandler } from './middleware/error-handler';
 import logger from '../utils/logger';
@@ -40,7 +41,10 @@ export function createExpressApp(config: AppConfig): Express {
   const publicDir = path.join(process.cwd(), 'public');
   app.use('/ui', express.static(publicDir));
   app.get('/', (_req, res) => {
-    res.redirect('/projects');
+    res.redirect('/dashboard');
+  });
+  app.get('/dashboard', (_req, res) => {
+    res.sendFile(path.join(publicDir, 'dashboard.html'));
   });
   app.get('/projects', (_req, res) => {
     res.sendFile(path.join(publicDir, 'projects.html'));
@@ -94,6 +98,7 @@ export function createExpressApp(config: AppConfig): Express {
   app.use('/api/pages', createPagesRoute(config.jira));
   app.use('/api/hierarchy', hierarchyRoutes);
   app.use('/api/chat', chatRoutes);
+  app.use('/api/dashboard', dashboardRoutes);
   app.use('/api/documents', createDocumentsRoute(config.jira));
 
   if (config.executionModes.event_driven.enabled) {

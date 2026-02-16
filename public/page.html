@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="sk">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Page - Test Scenario Generator</title>
+    <title>Stránka - Generátor testovacích scenárov</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -11,7 +11,10 @@
     <link rel="stylesheet" href="/ui/hierarchy.css">
     <link rel="stylesheet" href="/ui/review.css">
     <link rel="stylesheet" href="/ui/documents.css">
+    <link rel="stylesheet" href="/ui/toast.css">
+    <script defer src="/ui/toast.js"></script>
     <script defer src="/ui/sidebar.js"></script>
+    <script defer src="/ui/job-tracker.js"></script>
     <script defer src="/ui/export-helper.js"></script>
     <script defer src="/ui/page.js"></script>
   </head>
@@ -21,18 +24,21 @@
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
           <h2>Test Generator</h2>
-          <p>Project hierarchy</p>
+          <p>Hierarchia projektu</p>
         </div>
         <nav class="sidebar-nav" id="sidebarTree"></nav>
         <div class="sidebar-actions">
+          <a href="/dashboard" class="sidebar-link">
+            <span>&#9776;</span> Dashboard
+          </a>
           <a href="/generate" class="sidebar-link">
-            <span>+</span> Quick Generate
+            <span>+</span> Rýchle generovanie
           </a>
           <a href="/review" class="sidebar-link">
-            <span>!</span> Review Desk
+            <span>!</span> Kontrola scenárov
           </a>
           <a href="/jobs" class="sidebar-link">
-            <span>&#9881;</span> Joby
+            <span>&#9881;</span> Joby <span class="sidebar-badge" id="jobsBadge" style="display:none">0</span>
           </a>
           <a href="/documents" class="sidebar-link">
             <span>&#128196;</span> Dokumenty
@@ -43,17 +49,17 @@
       <!-- Main Content -->
       <main class="main-content">
         <div class="breadcrumb">
-          <a href="/projects">Projects</a>
+          <a href="/projects">Projekty</a>
           <span>/</span>
-          <a href="#" id="breadcrumbProject">Project</a>
+          <a href="#" id="breadcrumbProject">Projekt</a>
           <span>/</span>
-          <a href="#" id="breadcrumbComponent">Component</a>
+          <a href="#" id="breadcrumbComponent">Komponent</a>
           <span>/</span>
-          <span class="current" id="breadcrumbName">Loading...</span>
+          <span class="current" id="breadcrumbName">Načítavam...</span>
         </div>
 
         <div class="page-header">
-          <h1 id="pageName">Loading...</h1>
+          <h1 id="pageName">Načítavam...</h1>
           <p id="confluenceLink"></p>
         </div>
 
@@ -64,19 +70,19 @@
               <div>
                 <h4 class="source-doc-card card-header">
                   <span>&#128196;</span>
-                  Zdrojovy dokument
+                  Zdrojový dokument
                 </h4>
                 <p id="sourceDocFilename" style="margin: 0; font-weight: 500;"></p>
                 <p id="sourceDocMeta" class="muted" style="margin: 0.25rem 0 0 0; font-size: 0.85rem;"></p>
               </div>
-              <button type="button" class="ghost small" id="toggleSourceDocBtn">Zobrazit detaily</button>
+              <button type="button" class="ghost small" id="toggleSourceDocBtn">Zobraziť detaily</button>
             </div>
 
             <!-- Collapsible Details -->
             <div id="sourceDocDetails" class="source-doc-details" style="display: none;">
               <!-- Change Requests -->
               <div id="sourceDocChangeRequests" style="margin-bottom: 1rem;">
-                <h5 class="source-doc-details">Zmenove poziadavky:</h5>
+                <h5 class="source-doc-details">Zmenové požiadavky:</h5>
                 <div id="changeRequestsList"></div>
               </div>
 
@@ -88,7 +94,7 @@
 
               <!-- Manual Info -->
               <div id="sourceDocManualInfo" style="display: none; margin-top: 1rem;">
-                <h5 class="source-doc-details">Prirucka:</h5>
+                <h5 class="source-doc-details">Príručka:</h5>
                 <div style="display: flex; align-items: center; gap: 1rem;">
                   <p id="sourceDocManualContent" style="margin: 0; font-size: 0.9rem;"></p>
                   <a id="downloadManualBtn" href="#" class="ghost small" style="display: none;" download>Stiahnuť</a>
@@ -100,33 +106,33 @@
 
         <div class="action-bar">
           <div class="action-bar-left">
-            <span id="testCount">0 test scenarios</span>
+            <span id="testCount">0 testovacích scenárov</span>
           </div>
           <div class="action-bar-right">
             <label class="field-inline" for="maxTestsInput">
-              <span>Max tests</span>
+              <span>Max testov:</span>
               <input type="number" id="maxTestsInput" min="1" max="20" value="6">
             </label>
             <button type="button" class="ghost" id="exportBtn">Export</button>
-            <button type="button" class="ghost" id="editPageBtn">Edit</button>
-            <button type="button" class="ghost danger" id="deletePageBtn">Delete</button>
-            <button type="button" class="warn" id="clearAllTestsBtn">Clear All Tests</button>
-            <button type="button" class="primary" id="generateTestsBtn">Generate Tests</button>
+            <button type="button" class="ghost" id="editPageBtn">Upraviť</button>
+            <button type="button" class="ghost danger" id="deletePageBtn">Zmazať</button>
+            <button type="button" class="warn" id="clearAllTestsBtn">Vymazať všetky testy</button>
+            <button type="button" class="primary" id="generateTestsBtn">Generovať testy</button>
           </div>
         </div>
 
         <div class="stats-row" id="statsRow">
           <div class="stat-box">
             <div class="stat-value" id="totalScenarios">0</div>
-            <div class="stat-label">Total Scenarios</div>
+            <div class="stat-label">Celkom scenárov</div>
           </div>
           <div class="stat-box">
             <div class="stat-value" id="validatedScenarios">0</div>
-            <div class="stat-label">Validated</div>
+            <div class="stat-label">Validovaných</div>
           </div>
           <div class="stat-box">
             <div class="stat-value" id="needsReviewScenarios">0</div>
-            <div class="stat-label">Needs Review</div>
+            <div class="stat-label">Na kontrolu</div>
           </div>
         </div>
 
@@ -134,18 +140,18 @@
         <div class="section-spaced" id="contextSection">
           <div class="section-header">
             <div>
-              <h3>Dodatocny kontext pre generovanie testov</h3>
-              <p class="muted">Pridajte prirucky, dokumentaciu alebo ine informacie</p>
+              <h3>Dodatočný kontext pre generovanie testov</h3>
+              <p class="muted">Pridajte príručky, dokumentáciu alebo iné informácie</p>
             </div>
-            <button type="button" class="ghost small" id="toggleContextFormBtn">+ Pridat kontext</button>
+            <button type="button" class="ghost small" id="toggleContextFormBtn">+ Pridať kontext</button>
           </div>
 
           <!-- Current Context Display -->
           <div id="currentContextDisplay" style="display: none; margin-top: 1rem;">
             <div class="card" style="background: var(--bg-2);">
               <div class="card-header">
-                <h4 style="margin: 0; font-size: 0.9rem;">Sucasny kontext</h4>
-                <button type="button" class="danger small" id="clearContextBtn">Odstranit</button>
+                <h4 style="margin: 0; font-size: 0.9rem;">Súčasný kontext</h4>
+                <button type="button" class="danger small" id="clearContextBtn">Odstrániť</button>
               </div>
               <div id="contextContent" style="margin-top: 0.5rem; white-space: pre-wrap; max-height: 200px; overflow-y: auto; font-size: 0.85rem;"></div>
               <div id="contextMeta" class="meta" style="margin-top: 0.5rem;"></div>
@@ -156,7 +162,7 @@
           <div id="addContextForm" style="display: none; margin-top: 1rem;">
             <div class="card">
               <div class="form-group">
-                <label>Typ kontextu</label>
+                <label>Typ kontextu:</label>
                 <div class="radio-group" style="margin-bottom: 1rem;">
                   <label class="radio-option">
                     <input type="radio" name="contextType" value="text" checked>
@@ -164,7 +170,7 @@
                   </label>
                   <label class="radio-option">
                     <input type="radio" name="contextType" value="file">
-                    <span>Subor (docx/pdf)</span>
+                    <span>Súbor (docx/pdf)</span>
                   </label>
                   <label class="radio-option">
                     <input type="radio" name="contextType" value="link">
@@ -177,16 +183,16 @@
               <div id="textContextInput" class="context-input-section">
                 <div class="form-group">
                   <label for="contextText">Text kontextu</label>
-                  <textarea id="contextText" rows="6" placeholder="Vlozte dodatocne informacie, prirucky alebo poznamky..."></textarea>
+                  <textarea id="contextText" rows="6" placeholder="Vložte dodatočné informácie, príručky alebo poznámky..."></textarea>
                 </div>
               </div>
 
               <!-- File Input -->
               <div id="fileContextInput" class="context-input-section" style="display: none;">
                 <div class="form-group">
-                  <label for="contextFile">Nahrat subor</label>
+                  <label for="contextFile">Nahrať súbor</label>
                   <input type="file" id="contextFile" accept=".docx,.pdf,.txt">
-                  <p class="muted" style="margin-top: 0.5rem; font-size: 0.85rem;">Podporovane formaty: docx, pdf, txt</p>
+                  <p class="muted" style="margin-top: 0.5rem; font-size: 0.85rem;">Podporované formáty: docx, pdf, txt</p>
                 </div>
               </div>
 
@@ -195,13 +201,13 @@
                 <div class="form-group">
                   <label for="contextLink">Confluence link</label>
                   <input type="url" id="contextLink" placeholder="https://domain.atlassian.net/wiki/spaces/...">
-                  <p class="muted" style="margin-top: 0.5rem; font-size: 0.85rem;">Obsah stranky bude automaticky nacitany</p>
+                  <p class="muted" style="margin-top: 0.5rem; font-size: 0.85rem;">Obsah stránky bude automaticky načítaný</p>
                 </div>
               </div>
 
               <div class="manual-form-actions">
-                <button type="button" class="primary" id="saveContextBtn">Ulozit kontext</button>
-                <button type="button" class="ghost" id="cancelContextBtn">Zrusit</button>
+                <button type="button" class="primary" id="saveContextBtn">Uložiť kontext</button>
+                <button type="button" class="ghost" id="cancelContextBtn">Zrušiť</button>
               </div>
             </div>
           </div>
@@ -210,7 +216,7 @@
         <!-- Dependencies Section -->
         <div class="dependencies-section" id="dependenciesSection" style="display: none;">
           <h3>Závislosti na iné stránky</h3>
-          <p class="muted">Automaticky detekované z obsahu Confluence</p>
+          <p class="muted">Automaticky detegované z obsahu Confluence</p>
           <div class="dependencies-list" id="dependenciesList"></div>
         </div>
 
@@ -219,29 +225,29 @@
           <label class="control">
             <span>Status</span>
             <select id="statusFilter">
-              <option value="all">All scenarios</option>
-              <option value="validated">Validated only</option>
-              <option value="needs_review">Needs review only</option>
+              <option value="all">Všetky scenáre</option>
+              <option value="validated">Iba validované</option>
+              <option value="needs_review">Iba na kontrolu</option>
             </select>
           </label>
           <label class="control">
-            <span>Classification</span>
+            <span>Klasifikácia</span>
             <select id="classificationFilter">
-              <option value="all">All types</option>
+              <option value="all">Všetky typy</option>
               <option value="happy_path">Happy path</option>
               <option value="negative">Negative</option>
               <option value="edge_case">Edge case</option>
             </select>
           </label>
           <label class="control grow">
-            <span>Search</span>
-            <input id="searchInput" type="search" placeholder="Filter by test name or description...">
+            <span>Hľadanie</span>
+            <input id="searchInput" type="search" placeholder="Filtrovať podľa názvu alebo popisu testu...">
           </label>
         </div>
 
         <!-- Generation Status -->
         <div class="status" id="generationStatus" style="display: none;">
-          <div class="status-line" id="generationStatusMessage">Generating tests...</div>
+          <div class="status-line" id="generationStatusMessage">Generujem testy ...</div>
           <div class="status-meta" id="generationStatusMeta"></div>
         </div>
 
@@ -251,35 +257,35 @@
         </div>
 
         <div class="empty-state" id="emptyState" style="display: none;">
-          <h3>No test scenarios yet</h3>
-          <p>Generate test scenarios from this Confluence page</p>
-          <button type="button" class="primary" id="generateTestsEmptyBtn">Generate Tests</button>
+          <h3>Zatiaľ žiadne testovacie scenáre</h3>
+          <p>Vygenerujte testovacie scenáre z tejto Confluence stránky</p>
+          <button type="button" class="primary" id="generateTestsEmptyBtn">Generovať testy</button>
         </div>
 
         <!-- Job History -->
         <div id="jobHistorySection" class="section-spaced">
-          <h3>Generation History</h3>
+          <h3>História generovania</h3>
           <div id="jobHistoryContainer"></div>
         </div>
 
         <section class="chat-panel" id="chatPanel">
           <header class="chat-header">
             <div>
-              <h3>AI Refactor Chat</h3>
-              <p class="muted" id="chatContext">Using 0 scenarios</p>
+              <h3>AI Refaktor Chat</h3>
+              <p class="muted" id="chatContext">Používa 0 scenárov</p>
             </div>
-            <button type="button" class="ghost" id="chatClearBtn">Clear</button>
+            <button type="button" class="ghost" id="chatClearBtn">Vyčistiť</button>
           </header>
           <div class="chat-log" id="chatLog">
-            <div class="chat-empty" id="chatEmpty">Ask about the tests above to get refactor suggestions.</div>
+            <div class="chat-empty" id="chatEmpty">Opýtajte sa na testy vyššie a získajte návrhy na refaktoring.</div>
           </div>
           <form class="chat-form" id="chatForm">
             <label class="field">
-              <span>Your message</span>
-              <textarea id="chatInput" rows="3" placeholder="Ask for improvements, missing scenarios, or refactors..."></textarea>
+              <span>Vaša správa</span>
+              <textarea id="chatInput" rows="3" placeholder="Opýtajte sa na vylepšenia, chýbajúce scenáre alebo refaktoring..."></textarea>
             </label>
             <div class="chat-actions">
-              <button type="submit" class="primary" id="chatSendBtn">Send</button>
+              <button type="submit" class="primary" id="chatSendBtn">Odoslať</button>
             </div>
           </form>
         </section>
@@ -292,19 +298,19 @@
     <!-- Edit Page Modal -->
     <div class="modal-overlay" id="editModal">
       <div class="modal">
-        <h2>Edit Page</h2>
+        <h2>Upraviť stránku</h2>
         <form id="editPageForm">
           <div class="form-group">
-            <label for="editPageName">Page Name</label>
+            <label for="editPageName">Názov stránky</label>
             <input type="text" id="editPageName" name="name" required>
           </div>
           <div class="form-group">
-            <label for="editConfluenceLink">Confluence Link</label>
+            <label for="editConfluenceLink">Confluence odkaz</label>
             <input type="url" id="editConfluenceLink" name="confluence_link" required>
           </div>
           <div class="modal-actions">
-            <button type="button" class="ghost" id="cancelEditBtn">Cancel</button>
-            <button type="submit" class="primary">Save Changes</button>
+            <button type="button" class="ghost" id="cancelEditBtn">Zrušiť</button>
+            <button type="submit" class="primary">Uložiť zmeny</button>
           </div>
         </form>
       </div>
@@ -313,36 +319,36 @@
     <!-- Export Modal -->
     <div class="modal-overlay" id="exportModal">
       <div class="modal">
-        <h2>Export scenarov</h2>
-        <button class="icon modal-close" id="closeExportModal" aria-label="Close">X</button>
+        <h2>Export scenárov</h2>
+        <button class="icon modal-close" id="closeExportModal" aria-label="Zavrieť">X</button>
         <form id="exportForm">
           <div class="export-section">
-            <h4>Zahrnut statusy</h4>
+            <h4>Zahrnuté statusy</h4>
             <div class="checkbox-group">
               <label class="checkbox-field">
                 <input type="checkbox" name="exportStatus" value="validated" checked>
-                <span>Validated</span>
+                <span>Validované</span>
               </label>
               <label class="checkbox-field">
                 <input type="checkbox" name="exportStatus" value="needs_review" checked>
-                <span>Needs Review</span>
+                <span>Na kontrolu</span>
               </label>
               <label class="checkbox-field">
                 <input type="checkbox" name="exportStatus" value="dismissed">
-                <span>Dismissed</span>
+                <span>Zamietnuté</span>
               </label>
             </div>
           </div>
           <div class="export-section">
-            <h4>Format</h4>
+            <h4>Formát</h4>
             <div class="export-format-options">
               <button type="button" class="ghost export-format-btn active" data-format="excel">Excel (.xlsx)</button>
               <button type="button" class="ghost export-format-btn" data-format="pdf">PDF</button>
             </div>
           </div>
           <div class="modal-actions">
-            <button type="button" class="ghost" id="cancelExport">Zrusit</button>
-            <button type="submit" class="primary" id="downloadExport">Stiahnut</button>
+            <button type="button" class="ghost" id="cancelExport">Zrušiť</button>
+            <button type="submit" class="primary" id="downloadExport">Stiahnuť</button>
           </div>
         </form>
       </div>
@@ -351,16 +357,16 @@
     <!-- Edit Scenario Modal -->
     <div class="modal-overlay" id="editScenarioModal">
       <div class="modal modal-lg">
-        <h2>Edit Scenario</h2>
+        <h2>Upraviť scenár</h2>
         <form id="editScenarioForm">
           <input type="hidden" id="editScenarioTestId">
           <div class="form-row">
             <div class="form-group flex-2">
-              <label for="editScenarioName">Test Name</label>
+              <label for="editScenarioName">Názov testu</label>
               <input type="text" id="editScenarioName" name="test_name" required>
             </div>
             <div class="form-group">
-              <label for="editScenarioPriority">Priority</label>
+              <label for="editScenarioPriority">Priorita</label>
               <select id="editScenarioPriority" name="priority">
                 <option value="critical">Critical</option>
                 <option value="high">High</option>
@@ -371,7 +377,7 @@
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label for="editScenarioType">Test Type</label>
+              <label for="editScenarioType">Typ testu</label>
               <select id="editScenarioType" name="test_type">
                 <option value="functional">Functional</option>
                 <option value="regression">Regression</option>
@@ -379,7 +385,7 @@
               </select>
             </div>
             <div class="form-group">
-              <label for="editScenarioClassification">Classification</label>
+              <label for="editScenarioClassification">Klasifikácia</label>
               <select id="editScenarioClassification" name="scenario_classification">
                 <option value="happy_path">Happy Path</option>
                 <option value="negative">Negative</option>
@@ -387,23 +393,23 @@
               </select>
             </div>
             <div class="form-group">
-              <label for="editScenarioAutomation">Automation Status</label>
+              <label for="editScenarioAutomation">Stav automatizácie</label>
               <select id="editScenarioAutomation" name="automation_status">
-                <option value="ready_for_automation">Ready for automation</option>
-                <option value="automation_not_needed">Automation not needed</option>
+                <option value="ready_for_automation">Pripravené na automatizáciu</option>
+                <option value="automation_not_needed">Automatizácia nie je potrebná</option>
               </select>
             </div>
           </div>
           <div class="form-group">
-            <label for="editScenarioDescription">Description</label>
-            <textarea id="editScenarioDescription" name="description" rows="2" placeholder="Ciel: ..."></textarea>
+            <label for="editScenarioDescription">Popis</label>
+            <textarea id="editScenarioDescription" name="description" rows="2" placeholder="Cieľ: ..."></textarea>
           </div>
           <div class="form-group">
-            <label for="editScenarioPreconditions">Preconditions (one per line)</label>
+            <label for="editScenarioPreconditions">Predpoklady (jeden na riadok)</label>
             <textarea id="editScenarioPreconditions" name="preconditions" rows="3"></textarea>
           </div>
           <div class="form-group">
-            <label>Kroky testu (Test Steps)</label>
+            <label>Kroky testu</label>
             <div id="editScenarioStepsContainer" class="steps-editor">
               <!-- Steps will be dynamically added here -->
             </div>
@@ -411,17 +417,17 @@
           </div>
           <div class="form-row">
             <div class="form-group flex-2">
-              <label for="editScenarioFolder">Test Repository Folder</label>
-              <input type="text" id="editScenarioFolder" name="test_repository_folder" placeholder="e.g., KIS2/Login">
+              <label for="editScenarioFolder">Priečinok testového repozitára</label>
+              <input type="text" id="editScenarioFolder" name="test_repository_folder" placeholder="napr. KIS2/Login">
             </div>
             <div class="form-group">
-              <label for="editScenarioNotes">Validation Notes</label>
-              <input type="text" id="editScenarioNotes" name="validation_notes" placeholder="Optional notes">
+              <label for="editScenarioNotes">Poznámky k validácii</label>
+              <input type="text" id="editScenarioNotes" name="validation_notes" placeholder="Voliteľné poznámky">
             </div>
           </div>
           <div class="modal-actions">
-            <button type="button" class="ghost" id="cancelScenarioEditBtn">Cancel</button>
-            <button type="submit" class="primary">Save Changes</button>
+            <button type="button" class="ghost" id="cancelScenarioEditBtn">Zrušiť</button>
+            <button type="submit" class="primary">Uložiť zmeny</button>
           </div>
         </form>
       </div>

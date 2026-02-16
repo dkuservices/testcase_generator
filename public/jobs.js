@@ -73,6 +73,8 @@ function setupEventListeners() {
 }
 
 async function loadJobs() {
+  document.getElementById('jobsContainer').innerHTML = '<div class="loading-spinner"></div>';
+
   try {
     const params = new URLSearchParams({
       limit: PAGE_SIZE.toString(),
@@ -175,6 +177,12 @@ function renderJobs(jobs) {
             <td>${job.completed_at ? formatDateTime(job.completed_at) : '-'}</td>
             <td>
               <button class="ghost small" data-action="detail" data-job-id="${escapeHtml(job.job_id)}">Detail</button>
+              ${job.status === 'processing' ? `
+                <button class="ghost small danger" data-action="cancel" data-job-id="${escapeHtml(job.job_id)}">Zrušiť</button>
+              ` : ''}
+              ${job.status === 'failed' || job.status === 'cancelled' ? `
+                <button class="ghost small" data-action="retry" data-job-id="${escapeHtml(job.job_id)}">Znova</button>
+              ` : ''}
               ${job.status !== 'processing' ? `
                 <button class="ghost small danger" data-action="delete" data-job-id="${escapeHtml(job.job_id)}">Zmazať</button>
               ` : ''}
@@ -216,6 +224,10 @@ async function handleJobClick(e) {
     await showJobDetail(jobId);
   } else if (action === 'delete') {
     await deleteJob(jobId);
+  } else if (action === 'cancel') {
+    await cancelJob(jobId);
+  } else if (action === 'retry') {
+    await retryJob(jobId);
   }
 }
 
@@ -229,7 +241,7 @@ async function showJobDetail(jobId) {
     openJobDetailModal(job);
   } catch (error) {
     console.error('Chyba pri načítavaní detailu jobu:', error);
-    alert('Nepodarilo sa načítať detail jobu');
+    showToast('Nepodarilo sa načítať detail jobu', 'error');
   }
 }
 
@@ -355,7 +367,7 @@ function closeJobDetailModal() {
 }
 
 async function deleteJob(jobId) {
-  if (!confirm('Naozaj chcete zmazať tento job? Táto akcia sa nedá vrátiť späť.')) {
+  if (!(await showConfirm('Naozaj chcete zmazať tento job? Táto akcia sa nedá vrátiť späť.', 'Zmazať', 'Zrušiť', true))) {
     return;
   }
 
@@ -373,7 +385,7 @@ async function deleteJob(jobId) {
     loadJobs();
   } catch (error) {
     console.error('Chyba pri mazaní jobu:', error);
-    alert('Nepodarilo sa zmazať job: ' + error.message);
+    showToast('Nepodarilo sa zmazať job: ' + error.message, 'error');
   }
 }
 
@@ -400,6 +412,7 @@ function getStatusLabel(status) {
     case 'processing': return 'Spracováva sa';
     case 'completed': return 'Dokončené';
     case 'failed': return 'Zlyhalo';
+    case 'cancelled': return 'Zrušené';
     default: return status;
   }
 }
@@ -408,6 +421,39 @@ function formatDateTime(dateString) {
   if (!dateString) return '';
   const date = new Date(dateString);
   return date.toLocaleString('sk-SK');
+}
+
+async function cancelJob(jobId) {
+  if (!(await showConfirm('Naozaj chcete zrušiť tento job?', 'Zrušiť job', 'Nie', true))) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/jobs/${jobId}/cancel`, { method: 'POST' });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Nepodarilo sa zrušiť job');
+    }
+    showToast('Job bol zrušený', 'success');
+    loadJobs();
+  } catch (error) {
+    showToast('Nepodarilo sa zrušiť job: ' + error.message, 'error');
+  }
+}
+
+async function retryJob(jobId) {
+  try {
+    const response = await fetch(`/api/jobs/${jobId}/retry`, { method: 'POST' });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Nepodarilo sa znova spustiť job');
+    }
+    const result = await response.json();
+    showToast(`Nový job vytvorený: ${result.new_job_id.slice(0, 8)}...`, 'success');
+    loadJobs();
+  } catch (error) {
+    showToast('Nepodarilo sa znova spustiť job: ' + error.message, 'error');
+  }
 }
 
 function showError(message) {

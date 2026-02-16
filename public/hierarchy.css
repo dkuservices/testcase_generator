@@ -102,9 +102,25 @@
   transition: var(--transition);
 }
 
-.sidebar-link:hover span {
+.sidebar-link:hover span:not(.sidebar-badge) {
   background: var(--accent);
   color: #fff;
+}
+
+.sidebar-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--accent, #0F766E);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  margin-left: auto;
+  width: auto;
 }
 
 .sidebar-empty {
@@ -1031,4 +1047,26 @@ button.warn:hover {
 
 .page-dependency-group h4 a:hover {
   text-decoration: underline;
+}
+
+/* Loading Spinner */
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 60px 0;
+}
+
+.loading-spinner::after {
+  content: '';
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }

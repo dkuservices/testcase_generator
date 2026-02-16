@@ -20,7 +20,7 @@ import { executePipeline } from '../../pipeline/pipeline-orchestrator';
 import { ParsedWordDocument, DocumentPage } from '../../models/word-document';
 import { getRelevantChunksForChangeRequests, buildContextFromChunks } from '../../pipeline/relevance-scorer';
 import { saveJob, updateJob } from '../../storage/job-store';
-import { generateJobId } from '../../utils/uuid-generator';
+import { generateJobId, generateUUID } from '../../utils/uuid-generator';
 import { fetchConfluencePage } from '../../integrations/confluence-client';
 import { extractPageIdFromUrl, isValidConfluenceUrl } from '../../utils/confluence-url-parser';
 import logger from '../../utils/logger';
@@ -462,6 +462,77 @@ router.post('/:id/tests/:testId/validate', async (req: Request, res: Response, n
     });
 
     res.json({ message: 'Validation updated', test_id: testId, validation_status });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/pages/:id/tests/:testId/comments - Add a comment to a scenario
+router.post('/:id/tests/:testId/comments', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id, testId } = req.params;
+    const { author, content } = req.body || {};
+
+    if (!author || typeof author !== 'string' || !author.trim()) {
+      res.status(400).json({ error: 'author is required' });
+      return;
+    }
+
+    if (!content || typeof content !== 'string' || !content.trim()) {
+      res.status(400).json({ error: 'content is required' });
+      return;
+    }
+
+    if (content.length > 2000) {
+      res.status(400).json({ error: 'content must not exceed 2000 characters' });
+      return;
+    }
+
+    const page = await getPage(id);
+    if (!page) {
+      res.status(404).json({ error: 'Page not found', page_id: id });
+      return;
+    }
+
+    if (!page.latest_job_id) {
+      res.status(404).json({ error: 'No tests found for this page' });
+      return;
+    }
+
+    const job = await getJob(page.latest_job_id);
+    if (!job || !job.results?.scenarios) {
+      res.status(404).json({ error: 'Job has no scenarios' });
+      return;
+    }
+
+    const scenario = job.results.scenarios.find(s => s.test_id === testId);
+    if (!scenario) {
+      res.status(404).json({ error: 'Scenario not found', test_id: testId });
+      return;
+    }
+
+    if (!scenario.comments) {
+      scenario.comments = [];
+    }
+
+    const comment = {
+      id: generateUUID(),
+      author: author.trim(),
+      content: content.trim(),
+      created_at: new Date().toISOString(),
+    };
+
+    scenario.comments.push(comment);
+    await updateJob(page.latest_job_id, { results: job.results });
+
+    logger.info('Comment added to scenario via page API', {
+      page_id: id,
+      job_id: page.latest_job_id,
+      test_id: testId,
+      comment_id: comment.id,
+    });
+
+    res.status(201).json(comment);
   } catch (error) {
     next(error);
   }

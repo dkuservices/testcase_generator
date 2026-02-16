@@ -165,7 +165,7 @@ export async function listPagesByComponent(componentId: string): Promise<PageSum
   // Calculate summaries
   const summaries: PageSummary[] = await Promise.all(
     pages.map(async page => {
-      let latestJobStatus: 'processing' | 'completed' | 'failed' | undefined;
+      let latestJobStatus: 'processing' | 'completed' | 'failed' | 'cancelled' | undefined;
       let testCount = 0;
 
       if (page.latest_job_id) {

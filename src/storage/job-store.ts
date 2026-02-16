@@ -77,9 +77,27 @@ export async function deleteJob(jobId: string): Promise<string[]> {
   return deletedFiles;
 }
 
+export async function getJobsBulk(jobIds: string[]): Promise<Map<string, Job>> {
+  const result = new Map<string, Job>();
+  await Promise.all(
+    jobIds.map(async (jobId) => {
+      const filePath = path.join(JOBS_DIR, `${jobId}.json`);
+      try {
+        if (await fileExists(filePath)) {
+          const job = await readJSON<Job>(filePath);
+          result.set(jobId, job);
+        }
+      } catch (error) {
+        logger.warn('Failed to read job in bulk', { job_id: jobId, error: (error as Error).message });
+      }
+    })
+  );
+  return result;
+}
+
 export async function listJobs(
   filters?: {
-    status?: 'processing' | 'completed' | 'failed';
+    status?: 'processing' | 'completed' | 'failed' | 'cancelled';
     since?: string;
   },
   pagination?: {

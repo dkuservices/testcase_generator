@@ -3,31 +3,30 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Projekty - Generátor testovacích scenárov</title>
+    <title>Dashboard - Generátor testovacích scenárov</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/ui/generate.css">
     <link rel="stylesheet" href="/ui/hierarchy.css">
+    <link rel="stylesheet" href="/ui/review.css">
     <link rel="stylesheet" href="/ui/toast.css">
     <script defer src="/ui/toast.js"></script>
     <script defer src="/ui/sidebar.js"></script>
     <script defer src="/ui/job-tracker.js"></script>
-    <script defer src="/ui/projects.js"></script>
+    <script defer src="/ui/dashboard.js"></script>
   </head>
   <body>
     <div class="app-layout">
       <!-- Sidebar -->
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
-          <h2>Generátor testov</h2>
-          <p>Hierarchia projektov</p>
+          <h2>Test Generator</h2>
+          <p>Hierarchia projektu</p>
         </div>
-        <nav class="sidebar-nav" id="sidebarTree">
-          <!-- Tree will be populated by sidebar.js -->
-        </nav>
+        <nav class="sidebar-nav" id="sidebarTree"></nav>
         <div class="sidebar-actions">
-          <a href="/dashboard" class="sidebar-link">
+          <a href="/dashboard" class="sidebar-link active">
             <span>&#9776;</span> Dashboard
           </a>
           <a href="/generate" class="sidebar-link">
@@ -46,22 +45,9 @@
 
       <!-- Main Content -->
       <main class="main-content">
-        <div class="breadcrumb">
-          <span class="current">Projekty</span>
-        </div>
-
         <div class="page-header">
-          <h1>Projekty</h1>
-          <p>Spravujte vaše projekty a ich komponenty</p>
-        </div>
-
-        <div class="action-bar">
-          <div class="action-bar-left">
-            <span id="projectCount">0 projektov</span>
-          </div>
-          <div class="action-bar-right">
-            <button type="button" class="primary" id="createProjectBtn">Nový projekt</button>
-          </div>
+          <h1>Dashboard</h1>
+          <p>Prehľad vášho projektu generovania testovacích scenárov</p>
         </div>
 
         <div class="stats-row" id="statsRow">
@@ -83,40 +69,40 @@
           </div>
         </div>
 
-        <div class="cards-grid" id="projectsGrid">
-          <!-- Projects will be populated here -->
+        <!-- Quick Actions -->
+        <h2 style="margin-bottom: 16px;">Rýchle akcie</h2>
+        <div class="cards-grid" style="margin-bottom: 40px;">
+          <a href="/projects" class="item-card">
+            <h3>Projekty</h3>
+            <p>Spravujte projekty, komponenty a stránky v hierarchii</p>
+          </a>
+          <a href="/generate" class="item-card">
+            <h3>Generovať testy</h3>
+            <p>Vygenerujte testovacie scenáre z Confluence stránky alebo manuálneho vstupu</p>
+          </a>
+          <a href="/review" class="item-card">
+            <h3>Kontrola scenárov</h3>
+            <p>Skontrolujte a schváľte vygenerované testovacie scenáre</p>
+          </a>
+          <a href="/documents" class="item-card">
+            <h3>Dokumenty</h3>
+            <p>Nahrajte Word dokumenty a automaticky vygenerujte testy</p>
+          </a>
         </div>
 
-        <div class="empty-state" id="emptyState" style="display: none;">
-          <h3>Zatiaľ žiadne projekty</h3>
-          <p>Vytvorte svoj prvý projekt a začnite organizovať testovacie scenáre</p>
-          <button type="button" class="primary" id="createProjectEmptyBtn">Vytvoriť projekt</button>
+        <!-- Recent Jobs -->
+        <h2 style="margin-bottom: 16px;">Posledné joby</h2>
+        <div id="recentJobsContainer">
+          <div class="loading-spinner"></div>
+        </div>
+        <div class="empty-state" id="noRecentJobs" style="display: none;">
+          <h3>Žiadne joby</h3>
+          <p>Zatiaľ neboli spustené žiadne generovania</p>
         </div>
       </main>
     </div>
 
     <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
-    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar">Menu</button>
-
-    <!-- Create Project Modal (outside grid layout) -->
-    <div class="modal-overlay" id="createModal">
-      <div class="modal">
-        <h2>Vytvoriť nový projekt</h2>
-        <form id="createProjectForm">
-          <div class="form-group">
-            <label for="projectName">Názov projektu</label>
-            <input type="text" id="projectName" name="name" required placeholder="napr. Systém správy používateľov">
-          </div>
-          <div class="form-group">
-            <label for="projectDescription">Popis (voliteľný)</label>
-            <textarea id="projectDescription" name="description" placeholder="Stručný popis projektu..."></textarea>
-          </div>
-          <div class="modal-actions">
-            <button type="button" class="ghost" id="cancelCreateBtn">Zrušiť</button>
-            <button type="submit" class="primary">Vytvoriť projekt</button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Otvoriť navigáciu" aria-expanded="false" aria-controls="sidebar">Menu</button>
   </body>
 </html>

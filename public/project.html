@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="sk">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Project - Test Scenario Generator</title>
+    <title>Projekt - Generátor testovacích scenárov</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -11,7 +11,10 @@
     <link rel="stylesheet" href="/ui/hierarchy.css">
     <link rel="stylesheet" href="/ui/review.css">
     <link rel="stylesheet" href="/ui/documents.css">
+    <link rel="stylesheet" href="/ui/toast.css">
+    <script defer src="/ui/toast.js"></script>
     <script defer src="/ui/sidebar.js"></script>
+    <script defer src="/ui/job-tracker.js"></script>
     <script defer src="/ui/export-helper.js"></script>
     <script defer src="/ui/project.js"></script>
   </head>
@@ -21,19 +24,21 @@
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
           <h2>Test Generator</h2>
-          <p>Project hierarchy</p>
+          <p>Hierarchia projektu</p>
         </div>
         <nav class="sidebar-nav" id="sidebarTree"></nav>
         <div class="sidebar-actions">
+          <a href="/dashboard" class="sidebar-link">
+            <span>&#9776;</span> Dashboard
+          </a>
           <a href="/generate" class="sidebar-link">
-            <span>+</span> Quick Generate
+            <span>+</span> Rýchle generovanie
           </a>
           <a href="/review" class="sidebar-link">
-            <span>!</span> Review Desk
+            <span>!</span> Kontrola scenárov
           </a>
           <a href="/jobs" class="sidebar-link">
-            <span>&#9881;</span> Joby
-          </a>
+            <span>&#9881;</span> Joby <span class="sidebar-badge" id="jobsBadge" style="display:none">0</span></a>
           <a href="/documents" class="sidebar-link">
             <span>&#128196;</span> Dokumenty
           </a>
@@ -43,43 +48,43 @@
       <!-- Main Content -->
       <main class="main-content">
         <div class="breadcrumb">
-          <a href="/projects">Projects</a>
+          <a href="/projects">Projekty</a>
           <span>/</span>
-          <span class="current" id="breadcrumbName">Loading...</span>
+          <span class="current" id="breadcrumbName">Načítavam...</span>
         </div>
 
         <div class="page-header">
-          <h1 id="projectName">Loading...</h1>
+          <h1 id="projectName">Načítavam...</h1>
           <p id="projectDescription"></p>
         </div>
 
         <div class="action-bar">
           <div class="action-bar-left">
-            <span id="componentCount">0 components</span>
+            <span id="componentCount">0 komponentov</span>
           </div>
           <div class="action-bar-right">
-            <button type="button" class="ghost" id="editProjectBtn">Edit</button>
-            <button type="button" class="ghost danger" id="deleteProjectBtn">Delete</button>
-            <button type="button" class="primary" id="createComponentBtn">New Component</button>
+            <button type="button" class="ghost" id="editProjectBtn">Upraviť</button>
+            <button type="button" class="ghost danger" id="deleteProjectBtn">Zmazať</button>
+            <button type="button" class="primary" id="createComponentBtn">Nový komponent</button>
           </div>
         </div>
 
         <div class="stats-row" id="statsRow">
           <div class="stat-box">
             <div class="stat-value" id="totalComponents">0</div>
-            <div class="stat-label">Components</div>
+            <div class="stat-label">Komponenty</div>
           </div>
           <div class="stat-box">
             <div class="stat-value" id="totalPages">0</div>
-            <div class="stat-label">Pages</div>
+            <div class="stat-label">Stránky</div>
           </div>
           <div class="stat-box">
             <div class="stat-value" id="totalTests">0</div>
-            <div class="stat-label">Test Scenarios</div>
+            <div class="stat-label">Scenáre</div>
           </div>
           <div class="stat-box">
             <div class="stat-value" id="totalCrossModuleTests">0</div>
-            <div class="stat-label">Cross-Module Tests</div>
+            <div class="stat-label">Cross-Module testy</div>
           </div>
         </div>
 
@@ -88,9 +93,9 @@
           <div class="section-header">
             <div>
               <h3 style="margin: 0; display: flex; align-items: center; gap: 8px;">
-                Prirucka / Handbook
+                Príručka
               </h3>
-              <p class="muted" style="margin: 8px 0 0 0;">Nahrajte prirucku popisujucu funkcionalitu systemu. AI ju pouzije pri generovani cross-module testov.</p>
+              <p class="muted" style="margin: 8px 0 0 0;">Nahrajte príručku popisujúcu funkcionalitu systému. AI ju použije pri generovaní Cross-Module testov.</p>
             </div>
           </div>
 
@@ -98,10 +103,10 @@
           <div id="projectManualDisplay" class="manual-display" style="display: none; margin: 12px 0;">
             <div class="manual-display-header">
               <h4 class="manual-display-title">
-                <span>&#10003;</span> Prirucka nahrana
+                <span>&#10003;</span> Príručka nahraná
               </h4>
               <div>
-                <button type="button" class="warn small" id="removeManualBtn">Odstranit</button>
+                <button type="button" class="warn small" id="removeManualBtn">Odstrániť</button>
               </div>
             </div>
             <div id="projectManualContent" class="manual-display-content" style="max-height: 200px;"></div>
@@ -111,9 +116,9 @@
           <!-- Upload Manual Form -->
           <div id="projectManualUploadForm" style="margin-top: 1rem;">
             <div class="manual-upload-form">
-              <h4 id="projectManualFormTitle">Nahrat prirucku</h4>
+              <h4 id="projectManualFormTitle">Nahrať príručku</h4>
               <div class="form-group">
-                <label>Typ vstupu</label>
+                <label>Typ vstupu:</label>
                 <div class="radio-group" style="margin-bottom: 1rem;">
                   <label class="radio-option">
                     <input type="radio" name="projectManualType" value="text" checked>
@@ -121,7 +126,7 @@
                   </label>
                   <label class="radio-option">
                     <input type="radio" name="projectManualType" value="file">
-                    <span>Subor (docx/pdf/txt)</span>
+                    <span>Súbor (docx/pdf/txt)</span>
                   </label>
                 </div>
               </div>
@@ -129,12 +134,12 @@
               <!-- Text Input -->
               <div id="projectManualTextInput" class="manual-input-section">
                 <div class="form-group">
-                  <label for="projectManualText">Text prirucky</label>
-                  <textarea id="projectManualText" rows="8" placeholder="Vlozte obsah prirucky, kde je popisana existujuca funkcionalita systemu...
+                  <label for="projectManualText">Text príručky</label>
+                  <textarea id="projectManualText" rows="8" placeholder="Vložte obsah príručky, kde je popísaná existujúca funkcionalita systému...
 
-Napriklad:
-- Popis modulov a ich funkcii
-- Existujuce pravidla a validacie
+Napríklad:
+- Popis modulov a ich funkcií
+- Existujúce pravidlá a validácie
 - Workflow a procesy
 - Biznis logika"></textarea>
                 </div>
@@ -143,14 +148,14 @@ Napriklad:
               <!-- File Input -->
               <div id="projectManualFileInput" class="manual-input-section" style="display: none;">
                 <div class="form-group">
-                  <label for="projectManualFile">Nahrat subor prirucky</label>
+                  <label for="projectManualFile">Nahrať súbor príručky</label>
                   <input type="file" id="projectManualFile" accept=".docx,.pdf,.txt" style="padding: 12px; border: 2px dashed var(--border); border-radius: 6px; width: 100%; cursor: pointer;">
-                  <p class="muted" style="margin-top: 0.5rem; font-size: 0.85rem;">Podporovane formaty: docx, pdf, txt</p>
+                  <p class="muted" style="margin-top: 0.5rem; font-size: 0.85rem;">Podporované formáty: docx, pdf, txt</p>
                 </div>
               </div>
 
               <div class="manual-form-actions">
-                <button type="button" class="primary" id="saveProjectManualBtn">Ulozit prirucku</button>
+                <button type="button" class="primary" id="saveProjectManualBtn">Uložiť príručku</button>
               </div>
             </div>
           </div>
@@ -169,9 +174,9 @@ Napriklad:
           </div>
 
           <div class="empty-state" id="emptyState" style="display: none;">
-            <h3>No components yet</h3>
-            <p>Create components to organize your test scenarios by feature or module</p>
-            <button type="button" class="primary" id="createComponentEmptyBtn">Create Component</button>
+            <h3>Zatiaľ žiadne komponenty</h3>
+            <p>Vytvorte komponenty na organizáciu testovacích scenárov podľa funkcionality alebo modulu</p>
+            <button type="button" class="primary" id="createComponentEmptyBtn">Vytvoriť komponent</button>
           </div>
         </div>
 
@@ -183,23 +188,23 @@ Napriklad:
             </div>
             <div class="action-bar-right">
               <label class="field-inline" for="maxCrossModuleTestsInput">
-                <span>Max testov</span>
+                <span>Max testov:</span>
                 <input type="number" id="maxCrossModuleTestsInput" min="1" max="20" value="5">
               </label>
               <button type="button" class="ghost" id="exportCrossModuleBtn">Export</button>
-              <button type="button" class="warn" id="clearAllCrossModuleBtn">Vymazat vsetky</button>
-              <button type="button" class="primary" id="generateCrossModuleBtn">Generovat Cross-Module Testy</button>
+              <button type="button" class="warn" id="clearAllCrossModuleBtn">Vymazať všetky</button>
+              <button type="button" class="primary" id="generateCrossModuleBtn">Generovať Cross-Module testy</button>
             </div>
           </div>
 
           <div class="stats-row" id="crossModuleStatsRow">
             <div class="stat-box">
               <div class="stat-value" id="totalCrossModuleScenarios">0</div>
-              <div class="stat-label">Celkom scenarov</div>
+              <div class="stat-label">Celkom scenárov</div>
             </div>
             <div class="stat-box">
               <div class="stat-value" id="validatedCrossModuleScenarios">0</div>
-              <div class="stat-label">Validovane</div>
+              <div class="stat-label">Validovaných</div>
             </div>
             <div class="stat-box">
               <div class="stat-value" id="needsReviewCrossModuleScenarios">0</div>
@@ -212,29 +217,29 @@ Napriklad:
             <label class="control">
               <span>Status</span>
               <select id="crossModuleStatusFilter">
-                <option value="all">Vsetky scenare</option>
-                <option value="validated">Len validovane</option>
-                <option value="needs_review">Len na kontrolu</option>
+                <option value="all">Všetky scenáre</option>
+                <option value="validated">Iba validované</option>
+                <option value="needs_review">Iba na kontrolu</option>
               </select>
             </label>
             <label class="control">
-              <span>Klasifikacia</span>
+              <span>Klasifikácia</span>
               <select id="crossModuleClassificationFilter">
-                <option value="all">Vsetky typy</option>
+                <option value="all">Všetky typy</option>
                 <option value="happy_path">Happy path</option>
                 <option value="negative">Negative</option>
                 <option value="edge_case">Edge case</option>
               </select>
             </label>
             <label class="control grow">
-              <span>Hladanie</span>
-              <input id="crossModuleSearchInput" type="search" placeholder="Filtrovat podla nazvu alebo popisu testu...">
+              <span>Hľadanie</span>
+              <input id="crossModuleSearchInput" type="search" placeholder="Filtrovať podľa názvu alebo popisu testu...">
             </label>
           </div>
 
           <!-- Generation Status -->
           <div class="status" id="crossModuleGenerationStatus" style="display: none;">
-            <div class="status-line" id="crossModuleGenerationStatusMessage">Generujem testy...</div>
+            <div class="status-line" id="crossModuleGenerationStatusMessage">Generujem testy ...</div>
             <div class="status-meta" id="crossModuleGenerationStatusMeta"></div>
           </div>
 
@@ -243,14 +248,14 @@ Napriklad:
           </div>
 
           <div class="empty-state" id="crossModuleEmptyState" style="display: none;">
-            <h3>Ziadne cross-module testy</h3>
-            <p>Vygenerujte cross-module testy, ktore pokryvaju kompletne biznis workflow napriec vsetkymi modulmi projektu</p>
-            <button type="button" class="primary" id="generateCrossModuleEmptyBtn">Generovat Cross-Module Testy</button>
+            <h3>Žiadne Cross-Module testy</h3>
+            <p>Vygenerujte Cross-Module testy, ktoré pokrývajú kompletné biznis workflow naprieč všetkými modulmi projektu</p>
+            <button type="button" class="primary" id="generateCrossModuleEmptyBtn">Generovať Cross-Module testy</button>
           </div>
 
           <!-- Job History -->
           <div id="crossModuleJobHistorySection" class="section-spaced">
-            <h3>Historia generovania</h3>
+            <h3>História generovania</h3>
             <div id="crossModuleJobHistoryContainer"></div>
           </div>
         </div>
@@ -263,19 +268,19 @@ Napriklad:
     <!-- Create Component Modal -->
     <div class="modal-overlay" id="createModal">
       <div class="modal">
-        <h2>Create New Component</h2>
+        <h2>Vytvoriť nový komponent</h2>
         <form id="createComponentForm">
           <div class="form-group">
-            <label for="componentName">Component Name</label>
-            <input type="text" id="componentName" name="name" required placeholder="e.g., User Authentication">
+            <label for="componentName">Názov komponentu</label>
+            <input type="text" id="componentName" name="name" required placeholder="napr. Autentifikácia používateľa">
           </div>
           <div class="form-group">
-            <label for="componentDescription">Description (optional)</label>
-            <textarea id="componentDescription" name="description" placeholder="Brief description of the component..."></textarea>
+            <label for="componentDescription">Popis (voliteľný)</label>
+            <textarea id="componentDescription" name="description" placeholder="Stručný popis komponentu..."></textarea>
           </div>
           <div class="modal-actions">
-            <button type="button" class="ghost" id="cancelCreateBtn">Cancel</button>
-            <button type="submit" class="primary">Create Component</button>
+            <button type="button" class="ghost" id="cancelCreateBtn">Zrušiť</button>
+            <button type="submit" class="primary">Vytvoriť komponent</button>
           </div>
         </form>
       </div>
@@ -284,19 +289,19 @@ Napriklad:
     <!-- Edit Project Modal -->
     <div class="modal-overlay" id="editModal">
       <div class="modal">
-        <h2>Edit Project</h2>
+        <h2>Upraviť projekt</h2>
         <form id="editProjectForm">
           <div class="form-group">
-            <label for="editProjectName">Project Name</label>
+            <label for="editProjectName">Názov projektu</label>
             <input type="text" id="editProjectName" name="name" required>
           </div>
           <div class="form-group">
-            <label for="editProjectDescription">Description (optional)</label>
+            <label for="editProjectDescription">Popis (voliteľný)</label>
             <textarea id="editProjectDescription" name="description"></textarea>
           </div>
           <div class="modal-actions">
-            <button type="button" class="ghost" id="cancelEditBtn">Cancel</button>
-            <button type="submit" class="primary">Save Changes</button>
+            <button type="button" class="ghost" id="cancelEditBtn">Zrušiť</button>
+            <button type="submit" class="primary">Uložiť zmeny</button>
           </div>
         </form>
       </div>
@@ -305,36 +310,36 @@ Napriklad:
     <!-- Export Modal -->
     <div class="modal-overlay" id="exportModal">
       <div class="modal">
-        <h2>Export scenarov</h2>
-        <button class="icon modal-close" id="closeExportModal" aria-label="Close">X</button>
+        <h2>Export scenárov</h2>
+        <button class="icon modal-close" id="closeExportModal" aria-label="Zavrieť">X</button>
         <form id="exportForm">
           <div class="export-section">
-            <h4>Zahrnut statusy</h4>
+            <h4>Zahrnuté statusy</h4>
             <div class="checkbox-group">
               <label class="checkbox-field">
                 <input type="checkbox" name="exportStatus" value="validated" checked>
-                <span>Validated</span>
+                <span>Validované</span>
               </label>
               <label class="checkbox-field">
                 <input type="checkbox" name="exportStatus" value="needs_review" checked>
-                <span>Needs Review</span>
+                <span>Na kontrolu</span>
               </label>
               <label class="checkbox-field">
                 <input type="checkbox" name="exportStatus" value="dismissed">
-                <span>Dismissed</span>
+                <span>Zamietnuté</span>
               </label>
             </div>
           </div>
           <div class="export-section">
-            <h4>Format</h4>
+            <h4>Formát</h4>
             <div class="export-format-options">
               <button type="button" class="ghost export-format-btn active" data-format="excel">Excel (.xlsx)</button>
               <button type="button" class="ghost export-format-btn" data-format="pdf">PDF</button>
             </div>
           </div>
           <div class="modal-actions">
-            <button type="button" class="ghost" id="cancelExport">Zrusit</button>
-            <button type="submit" class="primary" id="downloadExport">Stiahnut</button>
+            <button type="button" class="ghost" id="cancelExport">Zrušiť</button>
+            <button type="submit" class="primary" id="downloadExport">Stiahnuť</button>
           </div>
         </form>
       </div>
@@ -343,16 +348,16 @@ Napriklad:
     <!-- Edit Scenario Modal -->
     <div class="modal-overlay" id="editScenarioModal">
       <div class="modal modal-lg">
-        <h2>Upravit Cross-Module Test</h2>
+        <h2>Upraviť Cross-Module test</h2>
         <form id="editScenarioForm">
           <input type="hidden" id="editScenarioTestId">
           <div class="form-row">
             <div class="form-group flex-2">
-              <label for="editScenarioName">Nazov testu</label>
+              <label for="editScenarioName">Názov testu</label>
               <input type="text" id="editScenarioName" name="test_name" required>
             </div>
             <div class="form-group">
-              <label for="editScenarioPriority">Priorita</label>
+              <label for="editScenarioPriority">Priorita:</label>
               <select id="editScenarioPriority" name="priority">
                 <option value="critical">Critical</option>
                 <option value="high">High</option>
@@ -363,7 +368,7 @@ Napriklad:
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label for="editScenarioType">Typ testu</label>
+              <label for="editScenarioType">Typ testu:</label>
               <select id="editScenarioType" name="test_type">
                 <option value="functional">Functional</option>
                 <option value="regression">Regression</option>
@@ -371,7 +376,7 @@ Napriklad:
               </select>
             </div>
             <div class="form-group">
-              <label for="editScenarioClassification">Klasifikacia</label>
+              <label for="editScenarioClassification">Klasifikácia:</label>
               <select id="editScenarioClassification" name="scenario_classification">
                 <option value="happy_path">Happy Path</option>
                 <option value="negative">Negative</option>
@@ -379,41 +384,41 @@ Napriklad:
               </select>
             </div>
             <div class="form-group">
-              <label for="editScenarioAutomation">Status automatizacie</label>
+              <label for="editScenarioAutomation">Stav automatizácie:</label>
               <select id="editScenarioAutomation" name="automation_status">
-                <option value="ready_for_automation">Ready for automation</option>
-                <option value="automation_not_needed">Automation not needed</option>
+                <option value="ready_for_automation">Pripravené na automatizáciu</option>
+                <option value="automation_not_needed">Automatizácia nie je potrebná</option>
               </select>
             </div>
           </div>
           <div class="form-group">
-            <label for="editScenarioDescription">Popis</label>
-            <textarea id="editScenarioDescription" name="description" rows="2" placeholder="Ciel: ..."></textarea>
+            <label for="editScenarioDescription">Popis:</label>
+            <textarea id="editScenarioDescription" name="description" rows="2" placeholder="Cieľ: ..."></textarea>
           </div>
           <div class="form-group">
-            <label for="editScenarioPreconditions">Predpoklady (jeden na riadok)</label>
+            <label for="editScenarioPreconditions">Predpoklady (jeden na riadok):</label>
             <textarea id="editScenarioPreconditions" name="preconditions" rows="3"></textarea>
           </div>
           <div class="form-group">
-            <label>Kroky testu (Test Steps)</label>
+            <label>Kroky testu:</label>
             <div id="editScenarioStepsContainer" class="steps-editor">
               <!-- Steps will be dynamically added here -->
             </div>
-            <button type="button" class="ghost small" id="addStepBtn">+ Pridat krok</button>
+            <button type="button" class="ghost small" id="addStepBtn">+ Pridať krok</button>
           </div>
           <div class="form-row">
             <div class="form-group flex-2">
-              <label for="editScenarioFolder">Test Repository Folder</label>
-              <input type="text" id="editScenarioFolder" name="test_repository_folder" placeholder="e.g., Project/CrossModule">
+              <label for="editScenarioFolder">Priečinok testového repozitára:</label>
+              <input type="text" id="editScenarioFolder" name="test_repository_folder" placeholder="napr. Projekt/CrossModule">
             </div>
             <div class="form-group">
-              <label for="editScenarioNotes">Poznamky k validacii</label>
-              <input type="text" id="editScenarioNotes" name="validation_notes" placeholder="Volitelne poznamky">
+              <label for="editScenarioNotes">Poznámky k validácii:</label>
+              <input type="text" id="editScenarioNotes" name="validation_notes" placeholder="Voliteľné poznámky">
             </div>
           </div>
           <div class="modal-actions">
-            <button type="button" class="ghost" id="cancelScenarioEditBtn">Zrusit</button>
-            <button type="submit" class="primary">Ulozit zmeny</button>
+            <button type="button" class="ghost" id="cancelScenarioEditBtn">Zrušiť</button>
+            <button type="submit" class="primary">Uložiť zmeny</button>
           </div>
         </form>
       </div>

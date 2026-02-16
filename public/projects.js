@@ -23,6 +23,9 @@ function setupEventListeners() {
 }
 
 async function loadProjects() {
+  const grid = document.getElementById('projectsGrid');
+  grid.innerHTML = '<div class="loading-spinner"></div>';
+
   try {
     const response = await fetch('/api/projects');
     if (!response.ok) throw new Error('Failed to load projects');
@@ -41,7 +44,7 @@ function renderProjects(projects) {
   const emptyState = document.getElementById('emptyState');
   const projectCount = document.getElementById('projectCount');
 
-  projectCount.textContent = `${projects.length} project${projects.length !== 1 ? 's' : ''}`;
+  projectCount.textContent = `${projects.length} projektov`;
 
   if (projects.length === 0) {
     grid.style.display = 'none';
@@ -55,11 +58,11 @@ function renderProjects(projects) {
   grid.innerHTML = projects.map(project => `
     <a href="/project/${project.project_id}" class="item-card">
       <h3>${escapeHtml(project.name)}</h3>
-      <p>${escapeHtml(project.description || 'No description')}</p>
+      <p>${escapeHtml(project.description || 'Bez popisu')}</p>
       <div class="item-card-meta">
-        <span>${project.component_count || 0} components</span>
-        <span>${project.total_pages || 0} pages</span>
-        <span>${project.total_tests || 0} tests</span>
+        <span>${project.component_count || 0} komponentov</span>
+        <span>${project.total_pages || 0} stránok</span>
+        <span>${project.total_tests || 0} testov</span>
       </div>
     </a>
   `).join('');
@@ -105,7 +108,7 @@ async function handleCreateProject(e) {
 
   try {
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Creating...';
+    submitBtn.textContent = 'Vytváram...';
 
     const name = document.getElementById('projectName').value.trim();
     const description = document.getElementById('projectDescription').value.trim();
@@ -128,7 +131,7 @@ async function handleCreateProject(e) {
     window.location.href = `/project/${project.project_id}`;
   } catch (error) {
     console.error('Error creating project:', error);
-    alert('Failed to create project: ' + error.message);
+    showToast('Nepodarilo sa vytvoriť projekt: ' + error.message, 'error');
   } finally {
     submitBtn.disabled = false;
     submitBtn.textContent = originalText;
@@ -139,9 +142,9 @@ function showError(message) {
   const grid = document.getElementById('projectsGrid');
   grid.innerHTML = `
     <div class="empty-state">
-      <h3>Error</h3>
+      <h3>Chyba</h3>
       <p>${escapeHtml(message)}</p>
-      <button type="button" class="primary" onclick="loadProjects()">Retry</button>
+      <button type="button" class="primary" onclick="loadProjects()">Skúsiť znova</button>
     </div>
   `;
 }

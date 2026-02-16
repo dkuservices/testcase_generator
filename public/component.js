@@ -11,6 +11,36 @@ const chatState = {
   pendingEl: null,
 };
 
+function saveChatMessages() {
+  if (!componentId) return;
+  try {
+    localStorage.setItem(`component:${componentId}:chat`, JSON.stringify(chatState.messages));
+  } catch (_) { /* quota exceeded – ignore */ }
+}
+
+function loadChatMessages() {
+  if (!componentId) return;
+  try {
+    const stored = localStorage.getItem(`component:${componentId}:chat`);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        chatState.messages = parsed;
+      }
+    }
+  } catch (_) { /* corrupted – ignore */ }
+}
+
+function restoreChatUI() {
+  if (!chatElements.log || chatState.messages.length === 0) return;
+  if (chatElements.empty) {
+    chatElements.empty.style.display = 'none';
+  }
+  for (const msg of chatState.messages) {
+    appendChatMessage(msg.role, msg.content);
+  }
+}
+
 const filterState = {
   status: 'all',
   classification: 'all',
@@ -53,6 +83,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadComponent();
   setupEventListeners();
+
+  // Restore persisted chat messages
+  loadChatMessages();
+  restoreChatUI();
 
   // Initialize export modal (shared helper from export-helper.js)
   if (typeof initExportModal === 'function') {
@@ -205,15 +239,17 @@ function switchTab(tabName) {
 }
 
 async function loadComponent() {
+  document.getElementById('pagesGrid').innerHTML = '<div class="loading-spinner"></div>';
+
   try {
     const response = await fetch(`/api/components/${componentId}`);
     if (!response.ok) {
       if (response.status === 404) {
-        alert('Component not found');
+        showToast('Komponent nebol nájdený', 'error');
         window.location.href = '/projects';
         return;
       }
-      throw new Error('Failed to load component');
+      throw new Error('Nepodarilo sa načítať komponent');
     }
 
     const component = await response.json();
@@ -224,15 +260,15 @@ async function loadComponent() {
     loadIntegrationJobHistory();
   } catch (error) {
     console.error('Error loading component:', error);
-    showError('Failed to load component');
+    showError('Nepodarilo sa načítať komponent');
   }
 }
 
 function renderComponent(component) {
-  document.title = `${component.name} - Test Scenario Generator`;
+  document.title = `${component.name} - Generátor testovacích scenárov`;
   document.getElementById('breadcrumbName').textContent = component.name;
   document.getElementById('componentName').textContent = component.name;
-  document.getElementById('componentDescription').textContent = component.description || 'No description';
+  document.getElementById('componentDescription').textContent = component.description || 'Bez popisu';
 
   // Set breadcrumb link
   document.getElementById('breadcrumbProject').href = `/project/${component.project_id}`;
@@ -243,7 +279,7 @@ function renderComponent(component) {
   document.getElementById('editComponentDescription').value = component.description || '';
 
   const pages = component.pages || [];
-  document.getElementById('pageCount').textContent = `${pages.length} page${pages.length !== 1 ? 's' : ''}`;
+  document.getElementById('pageCount').textContent = `${pages.length} stránok`;
 
   renderPages(pages);
 }
@@ -268,8 +304,8 @@ function renderPages(pages) {
         ? `<p class="confluence-link muted">Zdroj: dokumentový celok</p>`
         : `<p class="confluence-link">${escapeHtml(truncateUrl(page.confluence_link))}</p>`}
       <div class="item-card-meta">
-        <span>${page.test_count || 0} tests</span>
-        ${page.last_generated ? `<span>Generated ${formatDate(page.last_generated)}</span>` : '<span>Not generated</span>'}
+        <span>${page.test_count || 0} testov</span>
+        ${page.last_generated ? `<span>Vygenerované ${formatDate(page.last_generated)}</span>` : '<span>Nevygenerované</span>'}
       </div>
     </a>
   `).join('');
@@ -278,12 +314,12 @@ function renderPages(pages) {
 async function loadIntegrationTests() {
   try {
     const response = await fetch(`/api/components/${componentId}/tests`);
-    if (!response.ok) throw new Error('Failed to load integration tests');
+    if (!response.ok) throw new Error('Nepodarilo sa načítať integračné testy');
 
     const data = await response.json();
     allIntegrationTests = data.scenarios || [];
 
-    document.getElementById('integrationTestCount').textContent = `${data.total || 0} integration test${data.total !== 1 ? 's' : ''}`;
+    document.getElementById('integrationTestCount').textContent = `${data.total || 0} integračných testov`;
     updateChatContext(data.total || 0);
 
     // Update stats
@@ -421,8 +457,8 @@ function renderIntegrationTests(scenarios) {
   if (scenarios.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
-        <h3>No matching scenarios</h3>
-        <p>Try adjusting your filters</p>
+        <h3>Žiadne zodpovedajúce scenáre</h3>
+        <p>Skúste upraviť filtre</p>
       </div>
     `;
     return;
@@ -448,23 +484,23 @@ function renderIntegrationTests(scenarios) {
       ${scenario.description ? `<p class="review-card-description">${escapeHtml(scenario.description)}</p>` : ''}
 
       <div class="section">
-        <h4>Preconditions</h4>
+        <h4>Predpoklady</h4>
         <ul class="preconditions-list">
           ${(scenario.preconditions || []).length > 0
             ? (scenario.preconditions || []).map(p => `<li>${escapeHtml(p)}</li>`).join('')
-            : '<li>None provided</li>'}
+            : '<li>Neuvedené</li>'}
         </ul>
       </div>
 
       <div class="section">
-        <h4>Test Steps</h4>
+        <h4>Testovacie kroky</h4>
         <table class="steps-table">
           <thead>
             <tr>
               <th>#</th>
-              <th>Action</th>
-              <th>Input</th>
-              <th>Expected Result</th>
+              <th>Akcia</th>
+              <th>Vstup</th>
+              <th>Očakávaný výsledok</th>
             </tr>
           </thead>
           <tbody>
@@ -475,35 +511,35 @@ function renderIntegrationTests(scenarios) {
                 <td>${escapeHtml(step.input || '')}</td>
                 <td>${escapeHtml(step.expected_result || '')}</td>
               </tr>
-            `).join('') || '<tr><td colspan="4">No steps provided</td></tr>'}
+            `).join('') || '<tr><td colspan="4">Žiadne kroky</td></tr>'}
           </tbody>
         </table>
       </div>
 
       <div class="section">
-        <h4>Metadata</h4>
+        <h4>Metadáta</h4>
         <div class="meta">
-          <span>Folder: ${escapeHtml(scenario.test_repository_folder || 'N/A')}</span>
-          <span>Automation: ${escapeHtml(formatLabel(scenario.automation_status || 'N/A'))}</span>
+          <span>Priečinok: ${escapeHtml(scenario.test_repository_folder || 'N/A')}</span>
+          <span>Automatizácia: ${escapeHtml(formatLabel(scenario.automation_status || 'N/A'))}</span>
         </div>
       </div>
 
       ${scenario.validation_notes ? `
         <div class="section review-notes">
-          <h4>Validation Notes</h4>
+          <h4>Poznámky z validácie</h4>
           <p>${escapeHtml(scenario.validation_notes)}</p>
         </div>
       ` : ''}
 
       <div class="card-actions">
         ${scenario.validation_status === 'needs_review' ? `
-          <button class="primary" data-action="accept" data-test-id="${escapeHtml(scenario.test_id)}">Accept</button>
+          <button class="primary" data-action="accept" data-test-id="${escapeHtml(scenario.test_id)}">Prijať</button>
         ` : ''}
-        <button class="ghost" data-action="edit" data-test-id="${escapeHtml(scenario.test_id)}">Edit</button>
+        <button class="ghost" data-action="edit" data-test-id="${escapeHtml(scenario.test_id)}">Upraviť</button>
         ${scenario.validation_status !== 'dismissed' ? `
-          <button class="warn" data-action="dismiss" data-test-id="${escapeHtml(scenario.test_id)}">Dismiss</button>
+          <button class="warn" data-action="dismiss" data-test-id="${escapeHtml(scenario.test_id)}">Zamietnuť</button>
         ` : ''}
-        <button class="danger" data-action="delete" data-test-id="${escapeHtml(scenario.test_id)}">Delete</button>
+        <button class="danger" data-action="delete" data-test-id="${escapeHtml(scenario.test_id)}">Zmazať</button>
       </div>
     </div>
   `).join('');
@@ -527,13 +563,13 @@ async function handleScenarioAction(e) {
       renderFilteredIntegrationTests();
       updateTestStats();
     } else if (action === 'dismiss') {
-      if (!confirm('Dismiss this scenario? It will be hidden from validated list.')) return;
-      await updateScenarioValidation(testId, 'dismissed', 'Dismissed via component review');
+      if (!await showConfirm('Zamietnuť tento scenár? Bude skrytý zo zoznamu validovaných.')) return;
+      await updateScenarioValidation(testId, 'dismissed', 'Zamietnuté cez kontrolu komponentu');
       scenario.validation_status = 'dismissed';
       renderFilteredIntegrationTests();
       updateTestStats();
     } else if (action === 'delete') {
-      if (!confirm('Delete this scenario permanently? This cannot be undone.')) return;
+      if (!await showConfirm('Zmazať tento scenár natrvalo? Túto akciu nie je možné vrátiť.', 'Zmazať', 'Zrušiť', true)) return;
       await deleteScenario(testId);
       allIntegrationTests = allIntegrationTests.filter(s => s.test_id !== testId);
       renderFilteredIntegrationTests();
@@ -542,7 +578,7 @@ async function handleScenarioAction(e) {
       openScenarioEditModal(scenario);
     }
   } catch (error) {
-    alert('Action failed: ' + error.message);
+    showToast('Akcia zlyhala: ' + error.message, 'error');
   }
 }
 
@@ -558,7 +594,7 @@ async function updateScenarioValidation(testId, status, notes) {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || error.message || 'Failed to update validation');
+    throw new Error(error.error || error.message || 'Nepodarilo sa aktualizovať validáciu');
   }
 }
 
@@ -569,13 +605,13 @@ async function deleteScenario(testId) {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || error.message || 'Failed to delete scenario');
+    throw new Error(error.error || error.message || 'Nepodarilo sa zmazať scenár');
   }
 }
 
 function updateTestStats() {
   const total = allIntegrationTests.length;
-  document.getElementById('integrationTestCount').textContent = `${total} integration test${total !== 1 ? 's' : ''}`;
+  document.getElementById('integrationTestCount').textContent = `${total} integračných testov`;
   updateChatContext(total);
   updateIntegrationStats();
 }
@@ -717,7 +753,7 @@ async function handleEditScenario(e) {
 
   try {
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Saving...';
+    submitBtn.textContent = 'Ukladám...';
 
     const response = await fetch(`/api/components/${componentId}/tests/${testId}`, {
       method: 'PATCH',
@@ -727,7 +763,7 @@ async function handleEditScenario(e) {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error || error.message || 'Failed to save changes');
+      throw new Error(error.error || error.message || 'Nepodarilo sa uložiť zmeny');
     }
 
     // Update local state
@@ -739,7 +775,7 @@ async function handleEditScenario(e) {
     closeScenarioEditModal();
     renderFilteredIntegrationTests();
   } catch (error) {
-    alert('Failed to save: ' + error.message);
+    showToast('Nepodarilo sa uložiť: ' + error.message, 'error');
   } finally {
     submitBtn.disabled = false;
     submitBtn.textContent = originalText;
@@ -774,7 +810,7 @@ async function handleAddPage(e) {
 
   try {
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Adding...';
+    submitBtn.textContent = 'Pridávam...';
 
     const confluenceLink = document.getElementById('confluenceLink').value.trim();
     const name = document.getElementById('pageName').value.trim();
@@ -790,7 +826,7 @@ async function handleAddPage(e) {
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to add page');
+      throw new Error(error.error || 'Nepodarilo sa pridať stránku');
     }
 
     const page = await response.json();
@@ -800,7 +836,7 @@ async function handleAddPage(e) {
     window.location.href = `/page/${page.page_id}`;
   } catch (error) {
     console.error('Error adding page:', error);
-    alert('Failed to add page: ' + error.message);
+    showToast('Nepodarilo sa pridať stránku: ' + error.message, 'error');
   } finally {
     submitBtn.disabled = false;
     submitBtn.textContent = originalText;
@@ -816,7 +852,7 @@ async function handleEditComponent(e) {
 
   try {
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Saving...';
+    submitBtn.textContent = 'Ukladám...';
 
     const name = document.getElementById('editComponentName').value.trim();
     const description = document.getElementById('editComponentDescription').value.trim();
@@ -829,7 +865,7 @@ async function handleEditComponent(e) {
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to update component');
+      throw new Error(error.error || 'Nepodarilo sa aktualizovať komponent');
     }
 
     closeEditModal();
@@ -837,7 +873,7 @@ async function handleEditComponent(e) {
     if (window.sidebarRefresh) window.sidebarRefresh();
   } catch (error) {
     console.error('Error updating component:', error);
-    alert('Failed to update component: ' + error.message);
+    showToast('Nepodarilo sa aktualizovať komponent: ' + error.message, 'error');
   } finally {
     submitBtn.disabled = false;
     submitBtn.textContent = originalText;
@@ -845,7 +881,7 @@ async function handleEditComponent(e) {
 }
 
 async function handleDeleteComponent() {
-  if (!confirm(`Are you sure you want to delete "${currentComponent.name}"?\n\nThis will also delete all pages within this component. This action cannot be undone.`)) {
+  if (!await showConfirm(`Naozaj chcete zmazať "${currentComponent.name}"?\n\nTýmto sa zmažú aj všetky stránky v tomto komponente. Túto akciu nie je možné vrátiť.`, 'Zmazať', 'Zrušiť', true)) {
     return;
   }
 
@@ -856,13 +892,13 @@ async function handleDeleteComponent() {
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to delete component');
+      throw new Error(error.error || 'Nepodarilo sa zmazať komponent');
     }
 
     window.location.href = `/project/${currentComponent.project_id}`;
   } catch (error) {
     console.error('Error deleting component:', error);
-    alert('Failed to delete component: ' + error.message);
+    showToast('Nepodarilo sa zmazať komponent: ' + error.message, 'error');
   }
 }
 
@@ -877,7 +913,7 @@ async function handleGenerateIntegration() {
 
   try {
     btn.disabled = true;
-    btn.textContent = 'Starting...';
+    btn.textContent = 'Spúšťam...';
 
     const response = await fetch(`/api/components/${componentId}/generate`, {
       method: 'POST',
@@ -887,15 +923,15 @@ async function handleGenerateIntegration() {
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || error.message || 'Failed to generate integration tests');
+      throw new Error(error.error || error.message || 'Nepodarilo sa generovať integračné testy');
     }
 
     const result = await response.json();
-    showIntegrationGenerationStatus('processing', 'Integration test generation started...');
+    showIntegrationGenerationStatus('processing', 'Generovanie integračných testov sa začalo...');
     startIntegrationPolling(result.job_id);
   } catch (error) {
     console.error('Error generating integration tests:', error);
-    alert('Failed to generate integration tests: ' + error.message);
+    showToast('Nepodarilo sa generovať integračné testy: ' + error.message, 'error');
     btn.disabled = false;
     btn.textContent = originalText;
   }
@@ -909,26 +945,26 @@ async function handleGenerateAll() {
   const maxTests = Number.isFinite(maxTestsValue) && maxTestsValue > 0 ? maxTestsValue : 6;
 
   if (!currentComponent || !currentComponent.pages || currentComponent.pages.length === 0) {
-    alert('No pages found in this component. Add pages first before generating tests.');
+    showToast('Žiadne stránky v tomto komponente. Najprv pridajte stránky.', 'warning');
     return;
   }
 
-  if (!confirm(`This will generate tests for all ${currentComponent.pages.length} pages and then generate integration tests.\n\nContinue?`)) {
+  if (!await showConfirm(`Toto vygeneruje testy pre všetky ${currentComponent.pages.length} stránky a následne vygeneruje integračné testy.\n\nPokračovať?`)) {
     return;
   }
 
   try {
     btn.disabled = true;
-    btn.textContent = 'Generating...';
+    btn.textContent = 'Generujem...';
     generateAllInProgress = true;
 
-    showIntegrationGenerationStatus('processing', `Generating tests for ${currentComponent.pages.length} pages...`);
+    showIntegrationGenerationStatus('processing', `Generovanie testov pre ${currentComponent.pages.length} stránok...`);
 
     // Generate tests for all pages first
     const pageResults = [];
     for (let i = 0; i < currentComponent.pages.length; i++) {
       const page = currentComponent.pages[i];
-      showIntegrationGenerationStatus('processing', `Generating page tests (${i + 1}/${currentComponent.pages.length}): ${page.name}...`);
+      showIntegrationGenerationStatus('processing', `Generovanie testov stránky (${i + 1}/${currentComponent.pages.length}): ${page.name}...`);
 
       try {
         const response = await fetch(`/api/pages/${page.page_id}/generate`, {
@@ -946,7 +982,7 @@ async function handleGenerateAll() {
           pageResults[pageResults.length - 1].status = 'completed';
         } else {
           const error = await response.json().catch(() => ({}));
-          pageResults.push({ page: page.name, error: error.error || 'Failed', status: 'failed' });
+          pageResults.push({ page: page.name, error: error.error || 'Zlyhalo', status: 'failed' });
         }
       } catch (err) {
         pageResults.push({ page: page.name, error: err.message, status: 'failed' });
@@ -954,7 +990,7 @@ async function handleGenerateAll() {
     }
 
     // Now generate integration tests
-    showIntegrationGenerationStatus('processing', 'Generating integration tests...');
+    showIntegrationGenerationStatus('processing', 'Generovanie integračných testov...');
 
     const integrationResponse = await fetch(`/api/components/${componentId}/generate`, {
       method: 'POST',
@@ -964,7 +1000,7 @@ async function handleGenerateAll() {
 
     if (!integrationResponse.ok) {
       const error = await integrationResponse.json().catch(() => ({}));
-      throw new Error(error.error || 'Failed to generate integration tests');
+      throw new Error(error.error || 'Nepodarilo sa generovať integračné testy');
     }
 
     const integrationResult = await integrationResponse.json();
@@ -975,7 +1011,7 @@ async function handleGenerateAll() {
     const successCount = pageResults.filter(r => r.status === 'completed').length;
     const failCount = pageResults.filter(r => r.status === 'failed').length;
 
-    showIntegrationGenerationStatus('success', `Generation complete! Pages: ${successCount} OK, ${failCount} failed. Integration tests generated.`);
+    showIntegrationGenerationStatus('success', `Generovanie dokončené! Stránky: ${successCount} OK, ${failCount} zlyhalo. Integračné testy vygenerované.`);
 
     // Reload data
     loadComponent();
@@ -983,7 +1019,7 @@ async function handleGenerateAll() {
     loadIntegrationJobHistory();
   } catch (error) {
     console.error('Error in generate all:', error);
-    showIntegrationGenerationStatus('error', `Generation failed: ${error.message}`);
+    showIntegrationGenerationStatus('error', `Generovanie zlyhalo: ${error.message}`);
   } finally {
     btn.disabled = false;
     btn.textContent = originalText;
@@ -995,7 +1031,7 @@ async function waitForJob(jobId, maxAttempts = 120) {
   for (let i = 0; i < maxAttempts; i++) {
     try {
       const response = await fetch(`/api/jobs/${jobId}`);
-      if (!response.ok) throw new Error('Failed to check job status');
+      if (!response.ok) throw new Error('Nepodarilo sa skontrolovať stav úlohy');
 
       const job = await response.json();
 
@@ -1011,7 +1047,7 @@ async function waitForJob(jobId, maxAttempts = 120) {
     }
   }
 
-  throw new Error('Job timed out');
+  throw new Error('Úloha vypršala');
 }
 
 function startIntegrationPolling(jobId) {
@@ -1019,29 +1055,29 @@ function startIntegrationPolling(jobId) {
 
   const btn = document.getElementById('generateIntegrationBtn');
   btn.disabled = true;
-  btn.textContent = 'Generating...';
+  btn.textContent = 'Generujem...';
 
   pollingInterval = setInterval(async () => {
     try {
       const response = await fetch(`/api/jobs/${jobId}`);
-      if (!response.ok) throw new Error('Failed to check job status');
+      if (!response.ok) throw new Error('Nepodarilo sa skontrolovať stav úlohy');
 
       const job = await response.json();
 
       if (job.status === 'completed') {
         stopIntegrationPolling();
-        showIntegrationGenerationStatus('success', 'Integration test generation completed!');
+        showIntegrationGenerationStatus('success', 'Generovanie integračných testov dokončené!');
         loadIntegrationTests();
         loadIntegrationJobHistory();
         btn.disabled = false;
-        btn.textContent = 'Generate Integration Tests';
+        btn.textContent = 'Generovať integračné testy';
       } else if (job.status === 'failed') {
         stopIntegrationPolling();
-        showIntegrationGenerationStatus('error', `Generation failed: ${job.error || 'Unknown error'}`);
+        showIntegrationGenerationStatus('error', `Generovanie zlyhalo: ${job.error || 'Neznáma chyba'}`);
         btn.disabled = false;
-        btn.textContent = 'Generate Integration Tests';
+        btn.textContent = 'Generovať integračné testy';
       } else {
-        showIntegrationGenerationStatus('loading', 'Integration test generation in progress...');
+        showIntegrationGenerationStatus('loading', 'Generovanie integračných testov prebieha...');
       }
     } catch (error) {
       console.error('Error polling job status:', error);
@@ -1074,7 +1110,7 @@ function showIntegrationGenerationStatus(type, message) {
 async function loadIntegrationJobHistory() {
   try {
     const response = await fetch(`/api/components/${componentId}/jobs`);
-    if (!response.ok) throw new Error('Failed to load job history');
+    if (!response.ok) throw new Error('Nepodarilo sa načítať históriu úloh');
 
     const data = await response.json();
     renderIntegrationJobHistory(data.jobs || []);
@@ -1089,7 +1125,7 @@ function renderIntegrationJobHistory(jobs) {
   const container = document.getElementById('integrationJobHistoryContainer');
 
   if (jobs.length === 0) {
-    container.innerHTML = '<p class="muted">No generation history yet</p>';
+    container.innerHTML = '<p class="muted">Zatiaľ žiadna história generovania</p>';
     return;
   }
 
@@ -1097,11 +1133,11 @@ function renderIntegrationJobHistory(jobs) {
     <table class="scenarios-table">
       <thead>
         <tr>
-          <th>Job ID</th>
-          <th>Status</th>
-          <th>Scenarios</th>
-          <th>Created</th>
-          <th>Completed</th>
+          <th>ID úlohy</th>
+          <th>Stav</th>
+          <th>Scenáre</th>
+          <th>Vytvorené</th>
+          <th>Dokončené</th>
         </tr>
       </thead>
       <tbody>
@@ -1128,11 +1164,11 @@ function formatDateTime(dateString) {
 async function handleClearAllIntegration() {
   const testCount = allIntegrationTests.length;
   if (testCount === 0) {
-    alert('No integration tests to clear.');
+    showToast('Žiadne integračné testy na vymazanie.', 'warning');
     return;
   }
 
-  if (!confirm(`Are you sure you want to delete all ${testCount} integration tests?\n\nThis action cannot be undone.`)) {
+  if (!await showConfirm(`Naozaj chcete vymazať všetky ${testCount} integračné testy?\n\nTúto akciu nie je možné vrátiť.`, 'Zmazať', 'Zrušiť', true)) {
     return;
   }
 
@@ -1141,7 +1177,7 @@ async function handleClearAllIntegration() {
 
   try {
     btn.disabled = true;
-    btn.textContent = 'Clearing...';
+    btn.textContent = 'Mažem...';
 
     const response = await fetch(`/api/components/${componentId}/tests`, {
       method: 'DELETE',
@@ -1149,17 +1185,17 @@ async function handleClearAllIntegration() {
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to clear integration tests');
+      throw new Error(error.error || 'Nepodarilo sa vymazať integračné testy');
     }
 
     const result = await response.json();
     allIntegrationTests = [];
     renderFilteredIntegrationTests();
     updateTestStats();
-    alert(`Successfully deleted ${result.deleted_count} integration tests.`);
+    showToast(`Úspešne vymazaných ${result.deleted_count} integračných testov.`, 'success');
   } catch (error) {
     console.error('Error clearing integration tests:', error);
-    alert('Failed to clear integration tests: ' + error.message);
+    showToast('Nepodarilo sa vymazať integračné testy: ' + error.message, 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = originalText;
@@ -1187,13 +1223,13 @@ function formatDate(dateString) {
 }
 
 function formatLabel(value) {
-  if (!value) return 'Unknown';
+  if (!value) return 'Neznáme';
   const text = String(value).replace(/_/g, ' ');
   return text.replace(/\b\w/g, match => match.toUpperCase());
 }
 
 function formatShortId(value, length = 8) {
-  if (!value) return 'Unknown';
+  if (!value) return 'Neznáme';
   const text = String(value);
   if (text.length <= length) return text;
   return `${text.slice(0, length)}...`;
@@ -1201,7 +1237,7 @@ function formatShortId(value, length = 8) {
 
 function updateChatContext(totalScenarios) {
   if (!chatElements.context) return;
-  chatElements.context.textContent = `Using ${totalScenarios} scenario${totalScenarios === 1 ? '' : 's'}`;
+  chatElements.context.textContent = `Používa ${totalScenarios} scenárov`;
 }
 
 function appendChatMessage(role, content) {
@@ -1227,7 +1263,7 @@ function setChatPending(isPending) {
   chatElements.input.disabled = isPending;
 
   if (isPending) {
-    chatState.pendingEl = appendChatMessage('assistant pending', 'Thinking...');
+    chatState.pendingEl = appendChatMessage('assistant pending', 'Premýšľam...');
   } else if (chatState.pendingEl) {
     chatState.pendingEl.remove();
     chatState.pendingEl = null;
@@ -1237,6 +1273,7 @@ function setChatPending(isPending) {
 function resetChat() {
   if (!chatElements.log) return;
   chatState.messages = [];
+  saveChatMessages();
   chatElements.log.innerHTML = '';
   if (chatElements.empty) {
     chatElements.empty.style.display = 'block';
@@ -1256,6 +1293,7 @@ async function handleChatSubmit(event) {
 
   chatElements.input.value = '';
   chatState.messages.push({ role: 'user', content: message });
+  saveChatMessages();
   appendChatMessage('user', message);
   setChatPending(true);
 
@@ -1271,11 +1309,12 @@ async function handleChatSubmit(event) {
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(data.error || data.message || 'Chat request failed');
+      throw new Error(data.error || data.message || 'Požiadavka na chat zlyhala');
     }
 
-    const reply = data.reply || 'No response from assistant.';
+    const reply = data.reply || 'Žiadna odpoveď od asistenta.';
     chatState.messages.push({ role: 'assistant', content: reply });
+    saveChatMessages();
     setChatPending(false);
     appendChatMessage('assistant', reply);
 
@@ -1284,7 +1323,7 @@ async function handleChatSubmit(event) {
     }
   } catch (error) {
     setChatPending(false);
-    appendChatMessage('assistant', error.message || 'Chat request failed.');
+    appendChatMessage('assistant', error.message || 'Požiadavka na chat zlyhala.');
   }
 }
 
@@ -1292,9 +1331,9 @@ function showError(message) {
   const grid = document.getElementById('pagesGrid');
   grid.innerHTML = `
     <div class="empty-state">
-      <h3>Error</h3>
+      <h3>Chyba</h3>
       <p>${escapeHtml(message)}</p>
-      <button type="button" class="primary" onclick="loadComponent()">Retry</button>
+      <button type="button" class="primary" onclick="loadComponent()">Skúsiť znova</button>
     </div>
   `;
 }

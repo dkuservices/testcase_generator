@@ -1,7 +1,7 @@
 import path from 'path';
 import { BatchJob, BatchJobSummary } from '../models/batch-job';
 import { readJSON, writeJSON, fileExists, listFiles, deleteFile } from './json-storage';
-import { getJob } from './job-store';
+import { getJobsBulk } from './job-store';
 import logger from '../utils/logger';
 
 const BATCH_JOBS_DIR = path.join(process.cwd(), 'data', 'batch_jobs');
@@ -100,28 +100,25 @@ export async function listBatchJobs(
     batchJobs = batchJobs.slice(offset, offset + limit);
   }
 
-  // Convert to summaries
-  const summaries: BatchJobSummary[] = await Promise.all(
-    batchJobs.map(async (bj) => {
-      // Count completed sub-jobs
-      let completedCount = 0;
-      for (const sjId of bj.sub_jobs) {
-        const job = await getJob(sjId);
-        if (job?.status === 'completed') {
-          completedCount++;
-        }
-      }
+  // Collect all sub-job IDs and fetch in one bulk read
+  const allSubJobIds = Array.from(new Set(batchJobs.flatMap(bj => bj.sub_jobs)));
+  const jobsMap = await getJobsBulk(allSubJobIds);
 
-      return {
-        batch_job_id: bj.batch_job_id,
-        status: bj.status,
-        total_pages: bj.options.links.length,
-        completed_pages: completedCount,
-        created_at: bj.created_at,
-        completed_at: bj.completed_at,
-      };
-    })
-  );
+  // Convert to summaries using the pre-fetched map
+  const summaries: BatchJobSummary[] = batchJobs.map((bj) => {
+    const completedCount = bj.sub_jobs.filter(
+      sjId => jobsMap.get(sjId)?.status === 'completed'
+    ).length;
+
+    return {
+      batch_job_id: bj.batch_job_id,
+      status: bj.status,
+      total_pages: bj.options.links.length,
+      completed_pages: completedCount,
+      created_at: bj.created_at,
+      completed_at: bj.completed_at,
+    };
+  });
 
   return { total, batchJobs: summaries };
 }

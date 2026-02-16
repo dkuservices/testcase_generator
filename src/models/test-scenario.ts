@@ -36,6 +36,16 @@ export interface ValidationDetail {
 }
 
 /**
+ * A single comment attached to a test scenario
+ */
+export interface ScenarioComment {
+  id: string;
+  author: string;
+  content: string;
+  created_at: string;
+}
+
+/**
  * Enriched test scenario with metadata and validation status
  */
 export interface GeneratedTestScenario extends LLMTestScenarioOutput {
@@ -50,4 +60,5 @@ export interface GeneratedTestScenario extends LLMTestScenarioOutput {
   };
   validation_status: 'validated' | 'needs_review' | 'failed' | 'dismissed';
   validation_notes?: string | ValidationDetail[];
+  comments?: ScenarioComment[];
 }

@@ -3,7 +3,7 @@ import { GeneratedTestScenario } from './test-scenario';
 
 export interface Job {
   job_id: string;
-  status: 'processing' | 'completed' | 'failed';
+  status: 'processing' | 'completed' | 'failed' | 'cancelled';
   input: SpecificationInput;
   created_at: string;
   completed_at?: string;
@@ -26,7 +26,7 @@ export interface JobResults {
 
 export interface JobSummary {
   job_id: string;
-  status: 'processing' | 'completed' | 'failed';
+  status: 'processing' | 'completed' | 'failed' | 'cancelled';
   parent_jira_issue_id: string;
   created_at: string;
   completed_at?: string;

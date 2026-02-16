@@ -2,6 +2,10 @@ const state = {
   scenarios: [],
   status: 'needs_review',
   search: '',
+  priorityFilter: 'all',
+  classificationFilter: 'all',
+  testTypeFilter: 'all',
+  selected: new Set(),
 };
 
 const elements = {
@@ -11,6 +15,9 @@ const elements = {
   refreshButton: document.getElementById('refreshButton'),
   cleanButton: document.getElementById('cleanButton'),
   statusFilter: document.getElementById('statusFilter'),
+  priorityFilter: document.getElementById('priorityFilter'),
+  classificationFilter: document.getElementById('classificationFilter'),
+  testTypeFilter: document.getElementById('testTypeFilter'),
   searchInput: document.getElementById('searchInput'),
   editModal: document.getElementById('editModal'),
   editForm: document.getElementById('editForm'),
@@ -34,6 +41,16 @@ const elements = {
   closeExportModal: document.getElementById('closeExportModal'),
   cancelExport: document.getElementById('cancelExport'),
   downloadExport: document.getElementById('downloadExport'),
+  expandAllButton: document.getElementById('expandAllButton'),
+  collapseAllButton: document.getElementById('collapseAllButton'),
+  statTotal: document.getElementById('statTotal'),
+  statCritical: document.getElementById('statCritical'),
+  statHigh: document.getElementById('statHigh'),
+  statMedium: document.getElementById('statMedium'),
+  statLow: document.getElementById('statLow'),
+  statHappyPath: document.getElementById('statHappyPath'),
+  statNegative: document.getElementById('statNegative'),
+  statEdgeCase: document.getElementById('statEdgeCase'),
 };
 
 const priorityRank = {
@@ -76,6 +93,13 @@ function formatLabel(value) {
   if (!value) return 'Unknown';
   const text = String(value).replace(/_/g, ' ');
   return text.replace(/\b\w/g, match => match.toUpperCase());
+}
+
+function formatCommentDate(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return String(value);
+  return d.toLocaleDateString('sk-SK') + ' ' + d.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' });
 }
 
 function formatShortId(value, length = 8) {
@@ -165,6 +189,31 @@ function buildBadge(value) {
   return `<span class="badge ${className}">${escapeHtml(formatLabel(value))}</span>`;
 }
 
+function computeStats(items) {
+  const stats = {
+    total: items.length,
+    critical: 0, high: 0, medium: 0, low: 0,
+    happy_path: 0, negative: 0, edge_case: 0,
+  };
+
+  items.forEach(item => {
+    const s = item.scenario || {};
+    const p = String(s.priority || '').toLowerCase();
+    const c = String(s.scenario_classification || '').toLowerCase();
+    if (p in stats) stats[p]++;
+    if (c in stats) stats[c]++;
+  });
+
+  elements.statTotal.textContent = stats.total;
+  elements.statCritical.textContent = stats.critical;
+  elements.statHigh.textContent = stats.high;
+  elements.statMedium.textContent = stats.medium;
+  elements.statLow.textContent = stats.low;
+  elements.statHappyPath.textContent = stats.happy_path;
+  elements.statNegative.textContent = stats.negative;
+  elements.statEdgeCase.textContent = stats.edge_case;
+}
+
 function buildScenarioCard(item) {
   const scenario = item.scenario || {};
   const steps = Array.isArray(scenario.test_steps) ? scenario.test_steps.slice() : [];
@@ -185,11 +234,18 @@ function buildScenarioCard(item) {
   `).join('');
 
   const card = document.createElement('article');
-  card.className = 'card review-card';
+  const selectionKey = `${item.job_id}::${scenario.test_id}`;
+  const isChecked = state.selected.has(selectionKey);
+
+  card.className = 'card review-card collapsed';
   card.innerHTML = `
-    <div class="card-header">
-      <div>
-        <h3 class="card-title">${escapeHtml(scenario.test_name || 'Untitled scenario')}</h3>
+    <div class="card-header-row">
+      <input type="checkbox" class="scenario-checkbox" data-key="${escapeHtml(selectionKey)}" ${isChecked ? 'checked' : ''}>
+      <button type="button" class="card-toggle" aria-expanded="false" aria-label="Rozbaliť detaily">
+        <span class="toggle-icon">&#9654;</span>
+      </button>
+      <div class="card-header-info">
+        <h3 class="card-title">${escapeHtml(scenario.test_name || 'Nepomenovaný scenár')}</h3>
         <div class="badge-row">
           ${buildBadge(scenario.test_type)}
           ${buildBadge(scenario.scenario_classification)}
@@ -197,52 +253,76 @@ function buildScenarioCard(item) {
           ${buildBadge(scenario.validation_status)}
         </div>
       </div>
-      <div class="meta review-card-meta">
-        <span>Test ID: ${escapeHtml(formatShortId(scenario.test_id))}</span>
+      <div class="card-header-actions">
+        <button class="primary small" data-action="accept" data-job="${escapeHtml(item.job_id)}" data-test="${escapeHtml(scenario.test_id)}">Prijať</button>
+        <button class="ghost small" data-action="edit" data-job="${escapeHtml(item.job_id)}" data-test="${escapeHtml(scenario.test_id)}">Upraviť</button>
+        <button class="warn small" data-action="dismiss" data-job="${escapeHtml(item.job_id)}" data-test="${escapeHtml(scenario.test_id)}">Zamietnuť</button>
+      </div>
+      <div class="card-header-meta">
+        <span>ID: ${escapeHtml(formatShortId(scenario.test_id))}</span>
+        <span>${steps.length} krokov</span>
       </div>
     </div>
-    <p class="review-card-description">${escapeHtml(scenario.description || 'No description provided.')}</p>
-    <div class="section">
-      <h4>Preconditions</h4>
-      <ul class="preconditions-list">
-        ${preconditions.length > 0 ? preconditions.map(p => `<li>${escapeHtml(p)}</li>`).join('') : '<li>None provided</li>'}
-      </ul>
-    </div>
-    <div class="section">
-      <h4>Test Steps</h4>
-      <table class="steps-table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Action</th>
-            <th>Input</th>
-            <th>Expected Result</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${stepRows || '<tr><td colspan="4">No steps provided</td></tr>'}
-        </tbody>
-      </table>
-    </div>
-    <div class="section">
-      <h4>Metadata</h4>
-      <div class="meta">
-        <span>Folder: ${escapeHtml(scenario.test_repository_folder || 'N/A')}</span>
-        <span>Automation: ${escapeHtml(formatLabel(scenario.automation_status || 'N/A'))}</span>
-      </div>
-    </div>
-    ${notes.length > 0 ? `
-      <div class="section review-notes">
-        <h4>Validation Notes</h4>
-        <ul>
-          ${notes.map(note => `<li>${escapeHtml(note)}</li>`).join('')}
+    <div class="card-body">
+      <p class="review-card-description">${escapeHtml(scenario.description || 'Bez popisu.')}</p>
+      <div class="section">
+        <h4>Predpoklady</h4>
+        <ul class="preconditions-list">
+          ${preconditions.length > 0 ? preconditions.map(p => `<li>${escapeHtml(p)}</li>`).join('') : '<li>Neuvedené</li>'}
         </ul>
       </div>
-    ` : ''}
-    <div class="card-actions">
-      <button class="primary" data-action="accept" data-job="${escapeHtml(item.job_id)}" data-test="${escapeHtml(scenario.test_id)}">Accept</button>
-      <button class="ghost" data-action="edit" data-job="${escapeHtml(item.job_id)}" data-test="${escapeHtml(scenario.test_id)}">Edit</button>
-      <button class="warn" data-action="dismiss" data-job="${escapeHtml(item.job_id)}" data-test="${escapeHtml(scenario.test_id)}">Dismiss</button>
+      <div class="section">
+        <h4>Testovacie kroky</h4>
+        <table class="steps-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Akcia</th>
+              <th>Vstup</th>
+              <th>Očakávaný výsledok</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${stepRows || '<tr><td colspan="4">Žiadne kroky</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+      <div class="section">
+        <h4>Metadáta</h4>
+        <div class="meta">
+          <span>Priečinok: ${escapeHtml(scenario.test_repository_folder || 'N/A')}</span>
+          <span>Automatizácia: ${escapeHtml(formatLabel(scenario.automation_status || 'N/A'))}</span>
+        </div>
+      </div>
+      ${notes.length > 0 ? `
+        <div class="section review-notes">
+          <h4>Poznámky z validácie</h4>
+          <ul>
+            ${notes.map(note => `<li>${escapeHtml(note)}</li>`).join('')}
+          </ul>
+        </div>
+      ` : ''}
+      <div class="scenario-comments" data-job-id="${escapeHtml(item.job_id)}" data-test-id="${escapeHtml(scenario.test_id)}">
+        <h4>Komentáre ${(scenario.comments || []).length > 0 ? `(${scenario.comments.length})` : ''}</h4>
+        <div class="comments-thread">
+          ${(scenario.comments || []).map(c => `
+            <div class="comment-item">
+              <div class="comment-header">
+                <strong class="comment-author">${escapeHtml(c.author)}</strong>
+                <time class="comment-time">${formatCommentDate(c.created_at)}</time>
+              </div>
+              <p class="comment-content">${escapeHtml(c.content)}</p>
+            </div>
+          `).join('')}
+        </div>
+        <form class="comment-form" data-job-id="${escapeHtml(item.job_id)}" data-test-id="${escapeHtml(scenario.test_id)}">
+          <input type="text" placeholder="Meno" class="comment-author-input" value="${escapeHtml(localStorage.getItem('comment_author') || '')}" maxlength="100" required>
+          <div class="comment-form-row">
+            <textarea placeholder="Pridať komentár..." class="comment-content-input" maxlength="2000" rows="2" required></textarea>
+            <button type="submit" class="ghost small">Odoslať</button>
+          </div>
+        </form>
+      </div>
     </div>
   `;
 
@@ -250,39 +330,63 @@ function buildScenarioCard(item) {
 }
 
 async function loadScenarios() {
-  elements.grid.innerHTML = '';
+  elements.grid.innerHTML = '<div class="loading-spinner"></div>';
   elements.empty.classList.remove('active');
-  elements.countPill.textContent = 'Loading...';
+  elements.countPill.textContent = 'Načítavam...';
 
   try {
     const response = await fetch(`/api/review?status=${encodeURIComponent(state.status)}`);
     const data = await response.json();
     state.scenarios = Array.isArray(data.scenarios) ? data.scenarios : [];
+    computeStats(state.scenarios);
     renderScenarios();
   } catch (error) {
-    elements.countPill.textContent = 'Failed to load';
+    elements.countPill.textContent = 'Chyba načítania';
     elements.empty.classList.add('active');
   }
 }
 
 function renderScenarios() {
   const filtered = state.scenarios.filter(item => {
-    if (!state.search) return true;
-    const needle = state.search.toLowerCase();
     const scenario = item.scenario || {};
-    return [
-      scenario.test_name,
-      item.job_id,
-      item.parent_jira_issue_id,
-      scenario.test_id,
-      scenario.description,
-    ]
-      .filter(Boolean)
-      .some(value => String(value).toLowerCase().includes(needle));
+
+    // Priority filter
+    if (state.priorityFilter !== 'all' &&
+        String(scenario.priority || '').toLowerCase() !== state.priorityFilter) {
+      return false;
+    }
+
+    // Classification filter
+    if (state.classificationFilter !== 'all' &&
+        String(scenario.scenario_classification || '').toLowerCase() !== state.classificationFilter) {
+      return false;
+    }
+
+    // Test type filter
+    if (state.testTypeFilter !== 'all' &&
+        String(scenario.test_type || '').toLowerCase() !== state.testTypeFilter) {
+      return false;
+    }
+
+    // Text search
+    if (state.search) {
+      const needle = state.search.toLowerCase();
+      return [
+        scenario.test_name,
+        item.job_id,
+        item.parent_jira_issue_id,
+        scenario.test_id,
+        scenario.description,
+      ]
+        .filter(Boolean)
+        .some(value => String(value).toLowerCase().includes(needle));
+    }
+
+    return true;
   });
 
   elements.grid.innerHTML = '';
-  elements.countPill.textContent = `${filtered.length} scenario${filtered.length === 1 ? '' : 's'}`;
+  elements.countPill.textContent = `${filtered.length} scenár${filtered.length === 1 ? '' : filtered.length < 5 ? 'e' : 'ov'}`;
 
   if (filtered.length === 0) {
     elements.empty.classList.add('active');
@@ -299,31 +403,26 @@ function renderScenarios() {
 
     const sourceLabel = group.source_title ||
       (group.source_link ? truncateText(group.source_link) : '') ||
-      (group.confluence_page_id ? `Page ${group.confluence_page_id}` : 'Manual input');
+      (group.confluence_page_id ? `Page ${group.confluence_page_id}` : 'Manuálny vstup');
 
     const sourceLink = group.source_link;
-    const sourceHtml = sourceLink
-      ? `<a class="review-group-link" href="${escapeHtml(sourceLink)}" target="_blank" rel="noopener">${escapeHtml(sourceLabel || sourceLink)}</a>`
-      : `<span>${escapeHtml(sourceLabel)}</span>`;
+    const titleHtml = sourceLink
+      ? `<a class="review-group-title-link" href="${escapeHtml(sourceLink)}" target="_blank" rel="noopener">${escapeHtml(sourceLabel)}</a>`
+      : escapeHtml(sourceLabel);
 
-    const metaParts = [
-      `<span>Source: ${sourceHtml}</span>`,
-      group.parent_jira_issue_id ? `<span>Jira: ${escapeHtml(group.parent_jira_issue_id)}</span>` : null,
-      `<span>Created: ${escapeHtml(formatDate(group.job_created_at))}</span>`,
-      group.job_completed_at
-        ? `<span>Completed: ${escapeHtml(formatDate(group.job_completed_at))}</span>`
-        : group.job_status
-          ? `<span>Status: ${escapeHtml(formatLabel(group.job_status))}</span>`
-          : null,
-    ].filter(Boolean).join('');
+    const subtitleParts = [
+      `Job ${escapeHtml(formatShortId(group.job_id))}`,
+      group.parent_jira_issue_id ? `Jira: ${escapeHtml(group.parent_jira_issue_id)}` : null,
+      escapeHtml(formatDate(group.job_created_at)),
+    ].filter(Boolean).join(' &middot; ');
 
     groupEl.innerHTML = `
       <header class="review-group-header">
         <div>
-          <h2 class="review-group-title">Job ${escapeHtml(formatShortId(group.job_id))}</h2>
-          <div class="review-group-meta">${metaParts}</div>
+          <h2 class="review-group-title">${titleHtml}</h2>
+          <div class="review-group-subtitle">${subtitleParts}</div>
         </div>
-        <div class="review-group-count">${group.items.length} scenario${group.items.length === 1 ? '' : 's'}</div>
+        <div class="review-group-count">${group.items.length} scenár${group.items.length === 1 ? '' : group.items.length < 5 ? 'e' : 'ov'}</div>
       </header>
       <div class="review-group-body"></div>
     `;
@@ -388,7 +487,19 @@ function closeModal() {
   elements.editModal.setAttribute('aria-hidden', 'true');
 }
 
-elements.grid.addEventListener('click', async event => {
+// Toggle card expand/collapse
+elements.grid.addEventListener('click', event => {
+  const toggle = event.target instanceof Element ? event.target.closest('.card-toggle') : null;
+  if (toggle) {
+    const card = toggle.closest('.review-card');
+    if (card) {
+      const isCollapsed = card.classList.toggle('collapsed');
+      toggle.setAttribute('aria-expanded', String(!isCollapsed));
+    }
+    return;
+  }
+
+  // Action buttons
   const target = event.target instanceof Element ? event.target.closest('button[data-action]') : null;
   if (!target) return;
 
@@ -400,27 +511,31 @@ elements.grid.addEventListener('click', async event => {
   const scenarioEntry = state.scenarios.find(item => item.job_id === jobId && item.scenario.test_id === testId);
   if (!scenarioEntry) return;
 
-  try {
-    if (action === 'accept') {
-      await updateValidation(jobId, testId, 'validated');
-      state.scenarios = state.scenarios.filter(item => item !== scenarioEntry);
-      renderScenarios();
-    }
+  (async () => {
+    try {
+      if (action === 'accept') {
+        await updateValidation(jobId, testId, 'validated');
+        state.scenarios = state.scenarios.filter(item => item !== scenarioEntry);
+        computeStats(state.scenarios);
+        renderScenarios();
+      }
 
-    if (action === 'dismiss') {
-      const confirmDismiss = window.confirm('Dismiss this scenario? It will stay in history but be hidden from review.');
-      if (!confirmDismiss) return;
-      await updateValidation(jobId, testId, 'dismissed', 'Dismissed via review UI');
-      state.scenarios = state.scenarios.filter(item => item !== scenarioEntry);
-      renderScenarios();
-    }
+      if (action === 'dismiss') {
+        const confirmDismiss = await showConfirm('Zamietnuť tento scenár? Zostane v histórií, ale nebude viditeľný v review.');
+        if (!confirmDismiss) return;
+        await updateValidation(jobId, testId, 'dismissed', 'Dismissed via review UI');
+        state.scenarios = state.scenarios.filter(item => item !== scenarioEntry);
+        computeStats(state.scenarios);
+        renderScenarios();
+      }
 
-    if (action === 'edit') {
-      openModal(scenarioEntry);
+      if (action === 'edit') {
+        openModal(scenarioEntry);
+      }
+    } catch (error) {
+      showToast(error.message || 'Akcia zlyhala', 'error');
     }
-  } catch (error) {
-    window.alert(error.message || 'Action failed');
-  }
+  })();
 });
 
 elements.editForm.addEventListener('submit', async event => {
@@ -438,7 +553,6 @@ elements.editForm.addEventListener('submit', async event => {
     .map((line, idx) => {
       const parts = line.split('|').map(p => p.trim());
       const input = parts[1] || '';
-      // Handle placeholder text for empty input
       const actualInput = (input === '(žiadny vstup)' || input === '(žiadne údaje)') ? '' : input;
       return {
         step_number: idx + 1,
@@ -489,9 +603,10 @@ elements.editForm.addEventListener('submit', async event => {
     }
 
     closeModal();
+    computeStats(state.scenarios);
     renderScenarios();
   } catch (error) {
-    window.alert(error.message || 'Save failed');
+    showToast(error.message || 'Uloženie zlyhalo', 'error');
   }
 });
 
@@ -505,14 +620,15 @@ elements.editModal.addEventListener('click', event => {
 
 elements.refreshButton.addEventListener('click', loadScenarios);
 elements.cleanButton.addEventListener('click', async () => {
-  const confirmClean = window.confirm(
-    'This will permanently delete ALL scenarios that need review. This action cannot be undone.\n\nAre you sure?'
+  const confirmClean = await showConfirm(
+    'Toto natrvalo vymaže VŠETKY scenáre vyžadujúce kontrolu. Túto akciu nie je možné vrátiť späť.',
+    'Vymazať všetko', 'Zrušiť', true
   );
   if (!confirmClean) return;
 
   try {
     elements.cleanButton.disabled = true;
-    elements.cleanButton.textContent = 'Cleaning...';
+    elements.cleanButton.textContent = 'Mažem...';
 
     const response = await fetch('/api/review/clean', {
       method: 'DELETE',
@@ -524,24 +640,57 @@ elements.cleanButton.addEventListener('click', async () => {
     }
 
     const result = await response.json();
-    window.alert(`Cleaned ${result.cleaned} scenario(s) from ${result.jobs_modified} job(s).`);
+    showToast(`Vymazaných ${result.cleaned} scenárov z ${result.jobs_modified} jobov.`, 'success');
     await loadScenarios();
   } catch (error) {
-    window.alert(error.message || 'Clean failed');
+    showToast(error.message || 'Mazanie zlyhalo', 'error');
   } finally {
     elements.cleanButton.disabled = false;
-    elements.cleanButton.textContent = 'Clean All';
+    elements.cleanButton.textContent = 'Vyčistiť všetko';
   }
 });
 
+// Filter event listeners
 elements.statusFilter.addEventListener('change', event => {
   state.status = event.target.value;
   loadScenarios();
 });
 
+elements.priorityFilter.addEventListener('change', event => {
+  state.priorityFilter = event.target.value;
+  renderScenarios();
+});
+
+elements.classificationFilter.addEventListener('change', event => {
+  state.classificationFilter = event.target.value;
+  renderScenarios();
+});
+
+elements.testTypeFilter.addEventListener('change', event => {
+  state.testTypeFilter = event.target.value;
+  renderScenarios();
+});
+
 elements.searchInput.addEventListener('input', event => {
   state.search = event.target.value.trim();
   renderScenarios();
+});
+
+// Expand/Collapse All
+elements.expandAllButton.addEventListener('click', () => {
+  elements.grid.querySelectorAll('.review-card.collapsed').forEach(card => {
+    card.classList.remove('collapsed');
+    const toggle = card.querySelector('.card-toggle');
+    if (toggle) toggle.setAttribute('aria-expanded', 'true');
+  });
+});
+
+elements.collapseAllButton.addEventListener('click', () => {
+  elements.grid.querySelectorAll('.review-card:not(.collapsed)').forEach(card => {
+    card.classList.add('collapsed');
+    const toggle = card.querySelector('.card-toggle');
+    if (toggle) toggle.setAttribute('aria-expanded', 'false');
+  });
 });
 
 // Export functionality
@@ -579,7 +728,7 @@ elements.exportForm.addEventListener('submit', async event => {
   const statuses = Array.from(checkboxes).map(cb => cb.value);
 
   if (statuses.length === 0) {
-    window.alert('Vyberte aspoň jeden status na export.');
+    showToast('Vyberte aspoň jeden status na export.', 'warning');
     return;
   }
 
@@ -610,11 +759,176 @@ elements.exportForm.addEventListener('submit', async event => {
 
     closeExportModal();
   } catch (error) {
-    window.alert(error.message || 'Export zlyhal');
+    showToast(error.message || 'Export zlyhal', 'error');
   } finally {
     downloadBtn.disabled = false;
     downloadBtn.textContent = 'Stiahnuť';
   }
 });
+
+// Bulk selection handling
+const bulkBar = document.getElementById('bulkBar');
+const bulkCount = document.getElementById('bulkCount');
+const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+
+function updateBulkBar() {
+  const count = state.selected.size;
+  if (count > 0) {
+    bulkBar.style.display = 'flex';
+    bulkCount.textContent = `${count} vybraných`;
+  } else {
+    bulkBar.style.display = 'none';
+  }
+}
+
+// Comment form submission (delegated)
+elements.grid.addEventListener('submit', async (event) => {
+  const form = event.target.closest('.comment-form');
+  if (!form) return;
+  event.preventDefault();
+
+  const jobId = form.dataset.jobId;
+  const testId = form.dataset.testId;
+  const authorInput = form.querySelector('.comment-author-input');
+  const contentInput = form.querySelector('.comment-content-input');
+  const submitBtn = form.querySelector('button[type="submit"]');
+  const author = authorInput.value.trim();
+  const content = contentInput.value.trim();
+
+  if (!author || !content) return;
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Odosielam...';
+
+  try {
+    const response = await fetch(`/api/review/${jobId}/${testId}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ author, content }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || 'Nepodarilo sa pridať komentár');
+    }
+
+    const comment = await response.json();
+
+    // Update local state
+    const entry = state.scenarios.find(item => item.job_id === jobId && item.scenario.test_id === testId);
+    if (entry) {
+      if (!entry.scenario.comments) entry.scenario.comments = [];
+      entry.scenario.comments.push(comment);
+    }
+
+    // Append to thread
+    const thread = form.parentElement.querySelector('.comments-thread');
+    if (thread) {
+      const div = document.createElement('div');
+      div.className = 'comment-item';
+      div.innerHTML = `
+        <div class="comment-header">
+          <strong class="comment-author">${escapeHtml(comment.author)}</strong>
+          <time class="comment-time">${formatCommentDate(comment.created_at)}</time>
+        </div>
+        <p class="comment-content">${escapeHtml(comment.content)}</p>
+      `;
+      thread.appendChild(div);
+    }
+
+    // Update count header
+    const h4 = form.parentElement.querySelector('h4');
+    if (h4 && entry) {
+      h4.textContent = `Komentáre (${entry.scenario.comments.length})`;
+    }
+
+    localStorage.setItem('comment_author', author);
+    contentInput.value = '';
+  } catch (error) {
+    showToast(error.message, 'error');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Odoslať';
+  }
+});
+
+elements.grid.addEventListener('change', event => {
+  const checkbox = event.target.closest('.scenario-checkbox');
+  if (!checkbox) return;
+
+  const key = checkbox.dataset.key;
+  if (checkbox.checked) {
+    state.selected.add(key);
+  } else {
+    state.selected.delete(key);
+  }
+  updateBulkBar();
+});
+
+selectAllCheckbox.addEventListener('change', () => {
+  const checkboxes = elements.grid.querySelectorAll('.scenario-checkbox');
+  if (selectAllCheckbox.checked) {
+    checkboxes.forEach(cb => {
+      cb.checked = true;
+      state.selected.add(cb.dataset.key);
+    });
+  } else {
+    checkboxes.forEach(cb => {
+      cb.checked = false;
+    });
+    state.selected.clear();
+  }
+  updateBulkBar();
+});
+
+document.getElementById('bulkClearBtn').addEventListener('click', () => {
+  state.selected.clear();
+  selectAllCheckbox.checked = false;
+  elements.grid.querySelectorAll('.scenario-checkbox').forEach(cb => { cb.checked = false; });
+  updateBulkBar();
+});
+
+async function executeBulkAction(action) {
+  const testIds = Array.from(state.selected).map(key => {
+    const [job_id, test_id] = key.split('::');
+    return { job_id, test_id };
+  });
+
+  if (testIds.length === 0) return;
+
+  const label = action === 'accept' ? 'prijať' : 'zamietnuť';
+  const confirmed = await showConfirm(
+    `Naozaj chcete ${label} ${testIds.length} vybraných scenárov?`,
+    action === 'accept' ? 'Prijať' : 'Zamietnuť',
+    'Zrušiť',
+    action === 'dismiss'
+  );
+  if (!confirmed) return;
+
+  try {
+    const response = await fetch('/api/review/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, test_ids: testIds }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Hromadná akcia zlyhala');
+    }
+
+    const result = await response.json();
+    showToast(`Aktualizovaných ${result.updated} scenárov.`, 'success');
+    state.selected.clear();
+    selectAllCheckbox.checked = false;
+    updateBulkBar();
+    await loadScenarios();
+  } catch (error) {
+    showToast(error.message || 'Hromadná akcia zlyhala', 'error');
+  }
+}
+
+document.getElementById('bulkAcceptBtn').addEventListener('click', () => executeBulkAction('accept'));
+document.getElementById('bulkDismissBtn').addEventListener('click', () => executeBulkAction('dismiss'));
 
 loadScenarios();

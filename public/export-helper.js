@@ -43,7 +43,7 @@ function initExportModal(getScenariosFn, getTitleFn) {
     const statuses = Array.from(checkboxes).map(cb => cb.value);
 
     if (statuses.length === 0) {
-      window.alert('Vyberte aspon jeden status na export.');
+      showToast('Vyberte aspoň jeden status na export.', 'warning');
       return;
     }
 
@@ -51,7 +51,7 @@ function initExportModal(getScenariosFn, getTitleFn) {
     const filtered = scenarios.filter(s => statuses.includes(s.validation_status));
 
     if (filtered.length === 0) {
-      window.alert('Ziadne scenare so zvolenym statusom.');
+      showToast('Žiadne scenáre so zvoleným statusom.', 'warning');
       return;
     }
 
@@ -87,7 +87,7 @@ function initExportModal(getScenariosFn, getTitleFn) {
 
       closeModal();
     } catch (error) {
-      window.alert(error.message || 'Export zlyhal');
+      showToast(error.message || 'Export zlyhal', 'error');
     } finally {
       downloadExport.disabled = false;
       downloadExport.textContent = 'Stiahnuť';

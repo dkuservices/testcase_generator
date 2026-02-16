@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="sk">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Dokumenty - Test Scenario Generator</title>
+    <title>Dokumenty - Generátor testovacích scenárov</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -11,7 +11,10 @@
     <link rel="stylesheet" href="/ui/hierarchy.css">
     <link rel="stylesheet" href="/ui/review.css">
     <link rel="stylesheet" href="/ui/documents.css">
+    <link rel="stylesheet" href="/ui/toast.css">
+    <script defer src="/ui/toast.js"></script>
     <script defer src="/ui/sidebar.js"></script>
+    <script defer src="/ui/job-tracker.js"></script>
     <script defer src="/ui/documents.js"></script>
   </head>
   <body>
@@ -20,19 +23,21 @@
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
           <h2>Test Generator</h2>
-          <p>Project hierarchy</p>
+          <p>Hierarchia projektu</p>
         </div>
         <nav class="sidebar-nav" id="sidebarTree"></nav>
         <div class="sidebar-actions">
+          <a href="/dashboard" class="sidebar-link">
+            <span>&#9776;</span> Dashboard
+          </a>
           <a href="/generate" class="sidebar-link">
-            <span>+</span> Quick Generate
+            <span>+</span> Rýchle generovanie
           </a>
           <a href="/review" class="sidebar-link">
-            <span>!</span> Review Desk
+            <span>!</span> Kontrola scenárov
           </a>
           <a href="/jobs" class="sidebar-link">
-            <span>&#9881;</span> Joby
-          </a>
+            <span>&#9881;</span> Joby <span class="sidebar-badge" id="jobsBadge" style="display:none">0</span></a>
           <a href="/documents" class="sidebar-link active">
             <span>&#128196;</span> Dokumenty
           </a>
@@ -42,7 +47,7 @@
       <!-- Main Content -->
       <main class="main-content">
         <div class="breadcrumb">
-          <a href="/projects">Projects</a>
+          <a href="/projects">Projekty</a>
           <span>/</span>
           <span class="current">Dokumenty</span>
         </div>
@@ -235,6 +240,6 @@ Napriklad:
     </div>
 
     <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
-    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar">Menu</button>
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Otvoriť navigáciu" aria-expanded="false" aria-controls="sidebar">Menu</button>
   </body>
 </html>
